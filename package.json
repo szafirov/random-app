@@ -2,7 +2,7 @@
   "name": "random-app",
   "version": "0.1.0",
   "private": true,
-  "homepage": "http://szafirov.github.io/react-random",
+  "homepage": "http://szafirov.github.io/random-app",
   "dependencies": {
     "react": "^16.5.0",
     "react-dom": "^16.5.0",
