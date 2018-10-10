@@ -36,19 +36,25 @@ class App extends Component {
       Header: 'Round',
       accessor: 'round'
     }, {
-      Header: 'Won',
-      accessor: 'won'
+      Header: 'Level',
+      accessor: 'level'
     }, {
       Header: 'Index',
       accessor: 'index'
     }, {
-      Header: 'Level',
-      accessor: 'level'
+      Header: 'Bet Slot',
+      accessor: 'betOn'
     }, {
-      Header: 'Bet',
+      Header: 'Bet ($)',
       accessor: 'bet'
     }, {
-      Header: 'Value',
+      Header: 'Outcome',
+      accessor: 'won'
+    }, {
+      Header: 'Match',
+      accessor: 'match'
+    }, {
+      Header: 'Bank',
       accessor: 'value'
     }]
     this.handleInputChange = this.handleInputChange.bind(this)

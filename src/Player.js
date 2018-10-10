@@ -26,7 +26,9 @@ export default class Player {
       won: this.won ? 1 : 0,
       index: this.index,
       level: this.level,
+      betOn: 1,
       bet: this.betFactor(),
+      match: this.betFactor() === 1 ? 'W' : 'L',
       value: this.value
     }
   }
