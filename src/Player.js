@@ -15,23 +15,29 @@ export default class Player {
     this.outcome = Math.random() > 0.5
     this.betSlot = Math.random() > 0.5
     this.won = this.outcome === this.betSlot
-    this.bank += (this.won ? 1 : -1) * this.betFactor()
-    const newStar = this.won && this.index < 5 && this.index !== 3 && !this.star
-    this.index = this.increment(this.won, this.index, this.star)
-    if (this.index === 10) {
-      this.level += 1
-      this.index = 0
-    }
-    this.star = newStar
-    return {
+    this.bet = this.betFactor()
+    this.bank += (this.won ? 1 : -1) * this.bet
+    const state = {
       round: this.round,
-      index: this.index,
+      index: this.index + (this.star ? '*' : ''),
       level: this.level,
       betSlot: this.betSlot ? 1 : 0,
-      bet: this.betFactor(),
+      bet: this.bet,
       outcome: this.outcome ? 1 : 0,
       match: this.won ? 'W' : 'L',
       bank: this.bank
+    }
+    this.evolve()
+    return state
+  }
+
+  evolve () {
+    const nextStar = this.won && this.index < 5 && this.index !== 3 && !this.star
+    this.index = this.increment(this.won, this.index, this.star)
+    this.star = nextStar
+    if (this.index === 10) {
+      this.level += 1
+      this.index = 0
     }
   }
 
