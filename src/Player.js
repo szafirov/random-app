@@ -2,7 +2,7 @@ export default class Player {
 
   constructor() {
     this.round = -1
-    this.value = 0
+    this.bank = 0
     this.index = 0
     this.level = 0
     this.star = false
@@ -12,8 +12,10 @@ export default class Player {
 
   play () {
     this.round += 1
-    this.won = Math.random() > 0.5
-    this.value += (this.won ? 1 : -1) * this.betFactor()
+    this.outcome = Math.random() > 0.5
+    this.betSlot = Math.random() > 0.5
+    this.won = this.outcome === this.betSlot
+    this.bank += (this.won ? 1 : -1) * this.betFactor()
     const newStar = this.won && this.index < 5 && this.index !== 3 && !this.star
     this.index = this.increment(this.won, this.index, this.star)
     if (this.index === 10) {
@@ -23,13 +25,13 @@ export default class Player {
     this.star = newStar
     return {
       round: this.round,
-      won: this.won ? 1 : 0,
       index: this.index,
       level: this.level,
-      betOn: 1,
+      betSlot: this.betSlot ? 1 : 0,
       bet: this.betFactor(),
-      match: this.betFactor() === 1 ? 'W' : 'L',
-      value: this.value
+      outcome: this.outcome ? 1 : 0,
+      match: this.won ? 'W' : 'L',
+      bank: this.bank
     }
   }
 

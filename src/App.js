@@ -43,19 +43,19 @@ class App extends Component {
       accessor: 'index'
     }, {
       Header: 'Bet Slot',
-      accessor: 'betOn'
+      accessor: 'betSlot'
     }, {
       Header: 'Bet ($)',
       accessor: 'bet'
     }, {
       Header: 'Outcome',
-      accessor: 'won'
+      accessor: 'outcome'
     }, {
       Header: 'Match',
       accessor: 'match'
     }, {
       Header: 'Bank',
-      accessor: 'value'
+      accessor: 'bank'
     }]
     this.handleInputChange = this.handleInputChange.bind(this)
   }
@@ -65,7 +65,9 @@ class App extends Component {
   }
 
   tick = () => {
-    this.data.push(this.player.play())
+    const row = this.player.play()
+    // console.debug(row)
+    this.data.push(row)
     if (this.player.round < this.state.rounds && this.run) {
       setTimeout(() => this.tick(), 1)
     } else {
@@ -100,7 +102,7 @@ class App extends Component {
             <YAxis />
             <CartesianGrid strokeDasharray = "3 3" />
             <Tooltip active={true} />
-            <Area type='monotone' dataKey='value' stroke='#8884d8' fill='#8884d8' isAnimationActive={true} />
+            <Area type='monotone' dataKey='bank' stroke='#8884d8' fill='#8884d8' isAnimationActive={true} />
           </AreaChart>
           <ReactTable data={this.state.data} columns={this.columns} />
         </div>
