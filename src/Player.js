@@ -2,7 +2,7 @@ export default class Player {
 
   constructor() {
     this.round = -1
-    this.bank = 0
+    this.total = 0
     this.index = 0
     this.level = 0
     this.star = false
@@ -16,7 +16,8 @@ export default class Player {
     this.betSlot = Math.random() > 0.5
     this.won = this.outcome === this.betSlot
     this.bet = this.betFactor()
-    this.bank += (this.won ? 1 : -1) * this.bet
+    this.gain = (this.won ? 1 : -1) * this.bet
+    this.total += this.gain
     const state = {
       round: this.round,
       index: this.index + (this.star ? '*' : ''),
@@ -25,7 +26,8 @@ export default class Player {
       bet: this.bet,
       outcome: this.outcome ? 1 : 0,
       match: this.won ? 'W' : 'L',
-      bank: this.bank
+      gain: (this.gain > 0 ? '+' : '') + this.gain,
+      total: this.total
     }
     this.evolve()
     return state

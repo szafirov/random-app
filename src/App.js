@@ -2,14 +2,7 @@ import React, {Component} from 'react';
 import './App.css';
 import Player from './Player.js';
 
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip
-} from 'recharts';
+import {Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis} from 'recharts';
 
 import ReactTable from 'react-table';
 import 'react-table/react-table.css'
@@ -23,9 +16,9 @@ class App extends Component {
     this.chart = {
       margins: {
         top: 10,
-          right: 30,
-          left: 0,
-          bottom: 0
+        right: 30,
+        left: 0,
+        bottom: 0
       }
     }
     this.state = {
@@ -34,29 +27,42 @@ class App extends Component {
     }
     this.columns = [{
       Header: 'Round',
-      accessor: 'round'
+      accessor: 'round',
     }, {
       Header: 'Level',
-      accessor: 'level'
+      accessor: 'level',
     }, {
       Header: 'Index',
-      accessor: 'index'
+      accessor: 'index',
     }, {
       Header: 'Bet Slot',
-      accessor: 'betSlot'
+      accessor: 'betSlot',
     }, {
       Header: 'Bet ($)',
-      accessor: 'bet'
+      accessor: 'bet',
     }, {
       Header: 'Outcome',
-      accessor: 'outcome'
+      accessor: 'outcome',
     }, {
       Header: 'Match',
-      accessor: 'match'
+      accessor: 'match',
+      Cell: row => (
+        <span style={{
+          color: row.value === 'L' ? '#ff2e00' : '#57d500',
+          transition: 'all .3s ease'
+        }}>{row.value}</span>
+      )
     }, {
-      Header: 'Bank',
-      accessor: 'bank'
-    }]
+      Header: 'Gain',
+      accessor: 'gain',
+    }, {
+      Header: 'Total',
+      accessor: 'total',
+    }].map(column => {
+      column.maxWidth = 85
+      return column
+    })
+
     this.handleInputChange = this.handleInputChange.bind(this)
   }
 
@@ -87,6 +93,7 @@ class App extends Component {
   }
 
   render() {
+
     return (
       <div className="App">
         <p className="App-intro">
@@ -98,13 +105,13 @@ class App extends Component {
         </p>
         <div className="container">
           <AreaChart width={800} height={800} data={this.state.data} margin={this.chart.margins}>
-            <XAxis dataKey="round" />
-            <YAxis />
-            <CartesianGrid strokeDasharray = "3 3" />
-            <Tooltip active={true} />
-            <Area type='monotone' dataKey='bank' stroke='#8884d8' fill='#8884d8' isAnimationActive={true} />
+            <XAxis dataKey="round"/>
+            <YAxis/>
+            <CartesianGrid strokeDasharray="3 3"/>
+            <Tooltip active={true}/>
+            <Area type='monotone' dataKey='total' stroke='#8884d8' fill='#8884d8' isAnimationActive={true}/>
           </AreaChart>
-          <ReactTable data={this.state.data} columns={this.columns} />
+          <ReactTable data={this.state.data} columns={this.columns} className="table"/>
         </div>
       </div>
     );
