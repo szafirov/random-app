@@ -14,7 +14,7 @@ export default class Pair {
     const followerState = this.follower.play(this.outcome)
     this.gain = this.leader.gain + this.follower.gain
     this.total += this.gain
-    const formatGain = gain => (gain >= 0 ? '+' : '–') + Math.abs(gain)
+    const formatGain = gain => (gain >= 0 ? '+' : '-') + Math.abs(gain)
     const formatIndex = state => state.index + (state.star ? '*' : '')
     const format = (a, b) => a + ':' + b
     const state = {
@@ -25,7 +25,7 @@ export default class Pair {
       bet: format(leaderState.bet, followerState.bet),
       outcome: this.outcome ? 1 : 0,
       match: this.leader.won ? 'W:L' : 'L:W',
-      gain: formatGain(leaderState.gain) + ' ' + formatGain(followerState.gain) + ' = ' + this.gain,
+      gain: formatGain(leaderState.gain) + formatGain(followerState.gain) + '=' + this.gain,
       total: this.total,
     }
     this.leader.evolve()

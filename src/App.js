@@ -12,8 +12,6 @@ class App extends Component {
 
   constructor(props) {
     super(props)
-    this.run = true
-    this.data = []
     this.chart = {
       margins: {
         top: 10,
@@ -24,7 +22,8 @@ class App extends Component {
     }
     this.state = {
       rounds: 100,
-      data: []
+      data: [],
+      sampleData: []
     }
     this.columns = [{
       Header: 'Round',
@@ -71,24 +70,29 @@ class App extends Component {
     this.setState({rounds: parseInt(e.target.value, 10)})
   }
 
-  doRun = () => {
-    while (this.pair.round < this.state.rounds && this.run) {
-      this.data.push(this.pair.play())
-    }
-    this.setState({data: this.data});
-  }
-
   start() {
-    this.run = true
     const leader = new Player()
     const follower = new Player(leader)
     this.pair = new Pair(leader, follower)
     this.data = []
-    this.doRun()
+    this.run()
   }
 
-  stop() {
-    this.run = false
+  run = () => {
+    const maxSampleSize = 1000
+    const sampleRate = Math.max(1, Math.floor(this.state.rounds / maxSampleSize))
+    const data = []
+    const sampleData = []
+    console.debug(`Sample rate: ${sampleRate}`)
+    while (this.pair.round < this.state.rounds) {
+      const row = this.pair.play()
+      data.push(row)
+      if (this.pair.round % sampleRate === 0) sampleData.push(row)
+    }
+    this.setState({
+      data,
+      sampleData
+    });
   }
 
   render() {
@@ -99,10 +103,9 @@ class App extends Component {
             Rounds: <input type="number" min="0" value={this.state.rounds} onChange={this.handleInputChange}/>
           </label>
           <button onClick={() => this.start()}>Start</button>
-          <button onClick={() => this.stop()}>Stop</button>
         </p>
         <div className="container">
-          <AreaChart width={800} height={800} data={this.state.data} margin={this.chart.margins}>
+          <AreaChart width={800} height={800} data={this.state.sampleData} margin={this.chart.margins}>
             <XAxis dataKey="round"/>
             <YAxis/>
             <CartesianGrid strokeDasharray="3 3"/>
