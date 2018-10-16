@@ -1,8 +1,7 @@
 export default class Player {
 
-  constructor() {
-    this.round = -1
-    this.total = 0
+  constructor(leader) {
+    this.leader = leader
     this.index = 0
     this.level = 0
     this.star = false
@@ -10,27 +9,19 @@ export default class Player {
     this.coefficients = [1,1,1,2,2,4,6,10,16,26]
   }
 
-  play () {
-    this.round += 1
-    this.outcome = Math.random() > 0.5
-    this.betSlot = Math.random() > 0.5
-    this.won = this.outcome === this.betSlot
+  play (outcome) {
+    this.betSlot = this.leader ? 1 - this.leader.betSlot : Math.random() > 0.5
+    this.won = this.leader ? !this.leader.won : outcome === this.betSlot
     this.bet = this.betFactor()
     this.gain = (this.won ? 1 : -1) * this.bet
-    this.total += this.gain
-    const state = {
-      round: this.round,
-      index: this.index + (this.star ? '*' : ''),
+    return {
+      index: this.index,
+      star: this.star,
       level: this.level,
       betSlot: this.betSlot ? 1 : 0,
       bet: this.bet,
-      outcome: this.outcome ? 1 : 0,
-      match: this.won ? 'W' : 'L',
-      gain: (this.gain > 0 ? '+' : '') + this.gain,
-      total: this.total
+      gain: this.gain,
     }
-    this.evolve()
-    return state
   }
 
   evolve () {

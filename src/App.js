@@ -1,5 +1,6 @@
 import React, {Component} from 'react';
 import './App.css';
+import Pair from './Pair.js';
 import Player from './Player.js';
 
 import {Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis} from 'recharts';
@@ -59,7 +60,7 @@ class App extends Component {
       Header: 'Total',
       accessor: 'total',
     }].map(column => {
-      column.maxWidth = 85
+      column.maxWidth = 90
       return column
     })
 
@@ -70,22 +71,20 @@ class App extends Component {
     this.setState({rounds: parseInt(e.target.value, 10)})
   }
 
-  tick = () => {
-    const row = this.player.play()
-    // console.debug(row)
-    this.data.push(row)
-    if (this.player.round < this.state.rounds && this.run) {
-      setTimeout(() => this.tick(), 1)
-    } else {
-      this.setState({data: this.data});
+  doRun = () => {
+    while (this.pair.round < this.state.rounds && this.run) {
+      this.data.push(this.pair.play())
     }
+    this.setState({data: this.data});
   }
 
   start() {
     this.run = true
-    this.player = new Player()
+    const leader = new Player()
+    const follower = new Player(leader)
+    this.pair = new Pair(leader, follower)
     this.data = []
-    this.tick()
+    this.doRun()
   }
 
   stop() {
@@ -93,7 +92,6 @@ class App extends Component {
   }
 
   render() {
-
     return (
       <div className="App">
         <p className="App-intro">
