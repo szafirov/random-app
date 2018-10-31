@@ -21,12 +21,12 @@ class App extends Component {
       }
     }
     this.state = {
-      rounds: 100,
+      rounds: 1000,
       defense: 2,
       data: [],
       chartData: [],
       tableData: [],
-      currentRow: 1,
+      currentRow: 0,
       currentPage: undefined,
     }
     this.columns = [{
@@ -45,7 +45,7 @@ class App extends Component {
       Header: 'Bet ($)',
       accessor: 'bet',
     }, {
-      Header: 'Outcome',
+      Header: 'Out',
       accessor: 'outcome',
     }, {
       Header: 'Match',
@@ -62,8 +62,11 @@ class App extends Component {
     }, {
       Header: 'Total',
       accessor: 'total',
+    }, {
+      Header: 'Max',
+      accessor: 'max',
     }].map(column => {
-      column.maxWidth = 90
+      column.maxWidth = 75
       return column
     })
 
@@ -99,12 +102,13 @@ class App extends Component {
     let maxTotal = 0
     while (this.pair.round < rounds) {
       const row = this.pair.play()
-      if (maxTotal > 0 && this.pair.total >= maxTotal) {
-        maxTotal = this.pair.total
+      if (this.pair.leader.level > 0 && this.pair.total >= maxTotal) {
         this.pair.resetLevel()
       } else {
         this.pair.evolve()
       }
+      maxTotal = Math.max(maxTotal, this.pair.total)
+      row.max = maxTotal
       this.data.push(row)
       if (this.pair.round % sampleRate === 0) chartData.push(row)
     }
