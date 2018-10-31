@@ -26,7 +26,7 @@ export default class Player {
   play (outcome) {
     this.betSlot = this.leader ? 1 - this.leader.betSlot : Math.random() > 0.5
     this.won = this.leader ? !this.leader.won : outcome === this.betSlot
-    this.bet = this.betFactor()
+    this.bet = this.computeBet()
     this.gain = (this.won ? 1 : -1) * this.bet
     return {
       index: this.index,
@@ -55,9 +55,9 @@ export default class Player {
     this.star = false
   }
 
-  betFactor = () => {
-    const levelIndex = this.star ? 2 : coefficients[this.index]
-    return levelIndex * (this.defense ** (this.level + 1))
+  computeBet = () => {
+    const levelMultiplier = this.star ? 2 : coefficients[this.index]
+    return levelMultiplier * this.defense ** this.level
   }
 
 }
