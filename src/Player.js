@@ -1,12 +1,26 @@
+const coefficients = [1,1,1,2,2,4,6,10,16,26]
+
+const increment = (won, index, star) => {
+  if (won) {
+    if (index < 5 && index !== 3) {
+      return star ? 0 : index
+    } else {
+      return index - 3
+    }
+  } else {
+    return index + 1
+  }
+}
+
 export default class Player {
 
-  constructor(leader) {
+  constructor(defense, leader) {
+    this.defense = defense
     this.leader = leader
     this.index = 0
     this.level = 0
     this.star = false
     this.won = false
-    this.coefficients = [1,1,1,2,2,4,6,10,16,26]
   }
 
   play (outcome) {
@@ -26,25 +40,24 @@ export default class Player {
 
   evolve () {
     const nextStar = this.won && this.index < 5 && this.index !== 3 && !this.star
-    this.index = this.increment(this.won, this.index, this.star)
+    this.index = increment(this.won, this.index, this.star)
     this.star = nextStar
     if (this.index === 10) {
       this.level += 1
       this.index = 0
     }
+    return this.level
   }
 
-  betFactor = () => (this.star ? 2 : this.coefficients[this.index]) * (this.level + 1)
-
-  increment (won, index, star) {
-    if (won) {
-      if (index < 5 && index !== 3) {
-        return star ? 0 : index
-      } else {
-        return index - 3
-      }
-    } else {
-      return index + 1
-    }
+  reset () {
+    this.level = 0
+    this.index = 0
+    this.star = false
   }
+
+  betFactor = () => {
+    const levelIndex = this.star ? 2 : coefficients[this.index]
+    return levelIndex * (this.defense ** (this.level + 1))
+  }
+
 }

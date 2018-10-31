@@ -17,13 +17,17 @@ class App extends Component {
         top: 10,
         right: 30,
         left: 0,
-        bottom: 0
+        bottom: 0,
       }
     }
     this.state = {
       rounds: 100,
+      defense: 2,
       data: [],
-      sampleData: []
+      chartData: [],
+      tableData: [],
+      currentRow: 1,
+      currentPage: undefined,
     }
     this.columns = [{
       Header: 'Round',
@@ -63,60 +67,100 @@ class App extends Component {
       return column
     })
 
-    this.handleInputChange = this.handleInputChange.bind(this)
-  }
-
-  handleInputChange(e) {
-    this.setState({rounds: parseInt(e.target.value, 10)})
+    this.viewPageFor = currentRow => {
+      const computePage = row => Math.floor((row - 1) / 20)
+      const currentPage = computePage(currentRow)
+      if (this.state.currentRow !== currentRow) {
+        // console.debug(currentRow, this.state.currentPage, currentPage)
+        this.setState({
+          currentRow,
+          currentPage,
+          tableData: this.data.filter(row => computePage(row.round) === currentPage)
+        })
+      }
+    }
   }
 
   start() {
-    const leader = new Player()
-    const follower = new Player(leader)
+    const { defense } = this.state
+    const leader = new Player(defense)
+    const follower = new Player(defense, leader)
     this.pair = new Pair(leader, follower)
     this.data = []
     this.run()
   }
 
   run = () => {
+    const { rounds } = this.state
     const maxSampleSize = 1000
-    const sampleRate = Math.max(1, Math.floor(this.state.rounds / maxSampleSize))
-    const data = []
-    const sampleData = []
-    console.debug(`Sample rate: ${sampleRate}`)
-    while (this.pair.round < this.state.rounds) {
+    const sampleRate = Math.max(1, Math.floor(rounds / maxSampleSize))
+    this.data = []
+    const chartData = []
+    let maxTotal = 0
+    while (this.pair.round < rounds) {
       const row = this.pair.play()
-      data.push(row)
-      if (this.pair.round % sampleRate === 0) sampleData.push(row)
+      if (maxTotal > 0 && this.pair.total >= maxTotal) {
+        maxTotal = this.pair.total
+        this.pair.resetLevel()
+      } else {
+        this.pair.evolve()
+      }
+      this.data.push(row)
+      if (this.pair.round % sampleRate === 0) chartData.push(row)
     }
-    this.setState({
-      data,
-      sampleData
-    });
+    this.setState({ chartData });
+    this.viewPageFor(1)
   }
 
   render() {
+    const { defense, rounds, chartData, tableData, currentRow } = this.state
     return (
-      <div className="App">
-        <p className="App-intro">
+      <div className="app">
+        <p>
           <label>
-            Rounds: <input type="number" min="0" value={this.state.rounds} onChange={this.handleInputChange}/>
+            Rounds: <input type="number" min="0" max="10000" value={rounds} style={{ width: 100 }}
+                           onChange={e => this.setState({ rounds: parseInt(e.target.value, 10) })} />
           </label>
-          <button onClick={() => this.start()}>Start</button>
+          <label>
+            Defense: <input type="number" min="2" max="10" value={defense} style={{ width: 50 }}
+                            onChange={e => this.setState({ defense: parseInt(e.target.value, 10) })} />
+          </label>
+          <button className="app-btn" onClick={() => this.start()}>Start</button>
         </p>
         <div className="container">
-          <AreaChart width={800} height={800} data={this.state.sampleData} margin={this.chart.margins}>
+          <AreaChart width={800} height={800} data={chartData} margin={this.chart.margins}>
             <XAxis dataKey="round"/>
             <YAxis/>
             <CartesianGrid strokeDasharray="3 3"/>
-            <Tooltip active={true}/>
-            <Area type='monotone' dataKey='total' stroke='#8884d8' fill='#8884d8' isAnimationActive={true}/>
+            <Tooltip
+              isAnimationActive={false}
+              content={<CustomTooltip
+              onActive={this.viewPageFor}
+            />} />
+            <Area type='monotone' dataKey='total' stroke='#8884d8' fill='#8884d8'
+                  isAnimationActive={false}/>
           </AreaChart>
-          <ReactTable data={this.state.data} columns={this.columns} className="table"/>
+          <ReactTable
+            data={tableData}
+            columns={this.columns}
+            showPagination={false}
+            className="table -highlight"
+            getTrProps={(state, rowInfo) => ({
+              style: {
+                background: rowInfo && rowInfo.row.round === currentRow ? '#ccc' : ''
+              }
+            })}
+          />
         </div>
       </div>
     );
   }
+}
+
+function CustomTooltip(props) {
+  const { active, label, onActive } = props
+  if (active && label) onActive(label)
+  return null
 }
 
 export default App;

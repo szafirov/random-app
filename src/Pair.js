@@ -17,7 +17,7 @@ export default class Pair {
     const formatGain = gain => (gain >= 0 ? '+' : '-') + Math.abs(gain)
     const formatIndex = state => state.index + (state.star ? '*' : '')
     const format = (a, b) => a + ':' + b
-    const state = {
+    return {
       round: this.round,
       index: format(formatIndex(leaderState), formatIndex(followerState)),
       level: format(leaderState.level, followerState.level),
@@ -28,10 +28,16 @@ export default class Pair {
       gain: formatGain(leaderState.gain) + formatGain(followerState.gain) + '=' + this.gain,
       total: this.total,
     }
-    this.leader.evolve()
-    this.follower.evolve()
-    return state
   }
 
+  evolve(level) {
+    const maxLevel = Math.max(this.leader.evolve(), this.follower.evolve())
+    this.leader.level = level || maxLevel
+    this.follower.level = level || maxLevel
+  }
 
+  resetLevel() {
+    this.leader.reset()
+    this.follower.reset()
+  }
 }
