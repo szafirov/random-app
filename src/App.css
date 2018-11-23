@@ -1,10 +1,9 @@
 * {
-    font-size: large;
+    font-size: medium;
 }
 
-input, .app-btn {
-    padding: 5px;
-    margin: 5px;
+input, select, .app-btn {
+    margin: 10px;
 }
 
 .app {
