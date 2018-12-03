@@ -1,63 +1,47 @@
-const coefficients = [1,1,1,2,2,4,6,10,16,26]
+const coefficients = [1, 1, 1, 2, 2, 4, 6, 10, 16, 26]
 
 const increment = (won, index, star) => {
-  if (won) {
-    if (index < 5 && index !== 3) {
-      return star ? 0 : index
+    if (won) {
+        if (index < 5 && index !== 3) {
+            return star ? 0 : index
+        } else {
+            return index - 3
+        }
     } else {
-      return index - 3
+        return index + 1
     }
-  } else {
-    return index + 1
-  }
 }
 
 export default class Player {
 
-  constructor(defense, leader) {
-    this.defense = defense
-    this.leader = leader
-    this.index = 0
-    this.level = 0
-    this.star = false
-    this.won = false
-  }
-
-  play (outcome) {
-    this.betSlot = this.leader ? 1 - this.leader.betSlot : Math.random() > 0.5
-    this.won = this.leader ? !this.leader.won : outcome === this.betSlot
-    this.bet = this.computeBet()
-    this.gain = (this.won ? 1 : -1) * this.bet
-    return {
-      index: this.index,
-      star: this.star,
-      level: this.level,
-      betSlot: this.betSlot ? 1 : 0,
-      bet: this.bet,
-      gain: this.gain,
+    constructor(defense) {
+        this.defense = defense
+        this.index = 0
+        this.level = 0
+        this.star = false
     }
-  }
 
-  evolve () {
-    const nextStar = this.won && this.index < 5 && this.index !== 3 && !this.star
-    this.index = increment(this.won, this.index, this.star)
-    this.star = nextStar
-    if (this.index === 10) {
-      this.level += 1
-      this.index = 0
+    placeBet(slot) {
+        this.slot = slot
+        const levelMultiplier = this.star ? 2 : coefficients[this.index]
+        this.bet = levelMultiplier * this.defense ** this.level
     }
-    return this.level
-  }
 
-  reset () {
-    this.level = 0
-    this.index = 0
-    this.star = false
-  }
+    evolve(outcome) {
+        this.won = this.slot === outcome
+        this.gain = (this.won ? 1 : -1) * this.bet
+        const nextStar = this.won && this.index < 5 && this.index !== 3 && !this.star
+        this.index = increment(this.won, this.index, this.star)
+        this.star = nextStar
+        if (this.index === 10) {
+            this.level += 1
+            this.index = 0
+        }
+    }
 
-  computeBet = () => {
-    const levelMultiplier = this.star ? 2 : coefficients[this.index]
-    return levelMultiplier * this.defense ** this.level
-  }
-
+    resetLevel() {
+        this.level = 0
+        this.index = 0
+        this.star = false
+    }
 }

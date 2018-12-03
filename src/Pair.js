@@ -1,38 +1,41 @@
+import Player from './Player'
+
 export default class Pair {
 
-  constructor(index, leader, follower) {
-    this.index = index
-    this.leader = leader
-    this.follower = follower
-  }
-
-  play() {
-    this.outcome = Math.random() > 0.5
-    const leaderState = this.leader.play(this.outcome)
-    const followerState = this.follower.play(this.outcome)
-    this.gain = this.leader.gain + this.follower.gain
-    const formatGain = gain => (gain >= 0 ? '+' : '-') + Math.abs(gain)
-    const formatIndex = state => state.index + (state.star ? '*' : '')
-    const format = (a, b) => a + ':' + b
-    return {
-      index: format(formatIndex(leaderState), formatIndex(followerState)),
-      level: format(leaderState.level, followerState.level),
-      betSlot: format(leaderState.betSlot ? 1 : 0, followerState.betSlot ? 1 : 0),
-      bet: format(leaderState.bet, followerState.bet),
-      outcome: this.outcome ? 1 : 0,
-      match: this.leader.won ? 'W:L' : 'L:W',
-      gain: formatGain(leaderState.gain) + formatGain(followerState.gain) + '=' + this.gain,
+    constructor(index, defense) {
+        this.index = index
+        this.players = [new Player(defense), new Player(defense)]
     }
-  }
 
-  evolve(level) {
-    const maxLevel = Math.max(this.leader.evolve(), this.follower.evolve())
-    this.leader.level = level || maxLevel
-    this.follower.level = level || maxLevel
-  }
+    placeBets(slot) {
+        this.players[0].placeBet(slot)
+        this.players[1].placeBet(1 - slot)
+    }
 
-  resetLevel() {
-    this.leader.reset()
-    this.follower.reset()
-  }
+    playerBySlot(slot) {
+        return this.players[0].slot === slot ? this.players[0] : this.players[1]
+    }
+
+    evolve(outcome) {
+        this.players.forEach(p => p.evolve(outcome))
+        this.gain = this.players[0].gain + this.players[1].gain
+        this.level = Math.max(this.players[0].level, this.players[1].level)
+        this.players.forEach(p => p.level = this.level)
+        const formatGain = gain => (gain >= 0 ? '+' : '-') + Math.abs(gain)
+        const formatIndex = player => player.index + (player.star ? '*' : '')
+        const format = (prop) => this.players.map(p => p[prop]).join(':')
+        return {
+            index: this.players.map(formatIndex).join(':'),
+            level: this.level,
+            slot: format('slot'),
+            bet: format('bet'),
+            match: this.players[0].won ? 'W:L' : 'L:W',
+            gain: this.players.map(p => formatGain(p.gain)).join() + '=' + this.gain,
+            outcome,
+        }
+    }
+
+    resetLevel() {
+        this.players.forEach(p => p.resetLevel())
+    }
 }

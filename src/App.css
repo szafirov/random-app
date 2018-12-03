@@ -3,7 +3,11 @@
 }
 
 input, select, .app-btn {
-    margin: 10px;
+    margin: 5px;
+}
+
+label {
+    padding: 5px 10px;
 }
 
 .app {
