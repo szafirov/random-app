@@ -28,9 +28,7 @@ class App extends Component {
             simulate: false,
             currentRow: 0,
             currentPair: 0,
-            currentPage: 1,
-            betSumAt0: 0,
-            betSumAt1: 0,
+            currentPage: 1
         }
 
         this.manualColumns = [
@@ -136,10 +134,10 @@ class App extends Component {
                 'max'
             ].includes(col.accessor))
 
-        this.viewPageFor = (currentRow, currentPair) => {
+        this.viewPageFor = (currentRow, currentPair, resetPage) => {
             const computePage = row => Math.floor(row / 20)
             const currentPage = computePage(currentRow)
-            if (this.state.currentRow !== currentRow || this.state.currentPair !== currentPair || this.resetPage) {
+            if (this.state.currentRow !== currentRow || this.state.currentPair !== currentPair || resetPage) {
                 // console.debug(currentRow, currentPair, currentPage)
                 this.setState({
                     currentRow,
@@ -147,21 +145,32 @@ class App extends Component {
                     currentPair,
                     tableData: this.data.filter(row => computePage(row.round) === currentPage && row.pair === currentPair)
                 })
-                this.resetPage = false
             }
         }
     }
 
-    start = () => {
+    changeMode = (mode) => {
+        this.setState({ simulate: mode === 'simulation' })
+        this.resetData()
+    }
+
+    resetData = () => {
+        this.round = 0
+        this.bets = undefined
         this.max = 0
         this.total = 0
         this.data = []
-        const { defense, pairs, simulate } = this.state
+        const { defense, pairs } = this.state
         this.pairs = [...Array(pairs).keys()].map(index => new Pair(index, defense))
-        if (simulate) {
+        this.setState({ chartData: [] });
+        this.viewPageFor(0, 0, 'resetPage')
+    }
+
+    start = () => {
+        this.resetData()
+        if (this.state.simulate) {
             this.runSimulation()
         } else {
-            this.round = 0
             this.runManual()
         }
     }
@@ -175,18 +184,15 @@ class App extends Component {
             .map(pair => pair.playerBySlot(slot))
             .map(player => player.bet)
             .reduce((a, b) => a + b)
-        const [betSumAt0, betSumAt1] = [betSum(0), betSum(1)]
-        this.setState({ betSumAt0, betSumAt1 })
+        this.bets = [betSum(0), betSum(1)]
     }
 
     betDifference = () => {
-        const { betSumAt0, betSumAt1 } = this.state
-        return Math.abs(betSumAt0 - betSumAt1)
+        return this.bets && Math.abs(this.bets[0] - this.bets[1])
     }
 
     nextBet = (won) => {
-        const { betSumAt0, betSumAt1 } = this.state
-        const outcome = betSumAt1 > betSumAt0 === won ? 1 : 0
+        const outcome = (this.bets[0] > this.bets[1]) === won ? 1 : 0
         this.pairs.forEach(pair => pair.evolve(outcome))
         const gain = this.pairs.map(pair => pair.gain).reduce((a, b) => a + b)
         this.total += gain
@@ -207,7 +213,7 @@ class App extends Component {
             total: this.total,
             max: this.max
         })
-        console.debug(JSON.stringify(this.data))
+        // console.debug(JSON.stringify(this.data))
         this.runManual()
         this.displayChartAndTable()
         this.viewPageFor(this.round, 0)
@@ -229,9 +235,9 @@ class App extends Component {
                 max: this.max
             }))
         })
-        console.debug(JSON.stringify(this.data))
+        // console.debug(JSON.stringify(this.data))
         this.displayChartAndTable(rounds)
-        this.viewPageFor(0, 0)
+        this.viewPageFor(0, 0, 'resetPage')
     }
 
     displayChartAndTable = (rounds = 1000) => {
@@ -239,7 +245,6 @@ class App extends Component {
         const sampleRate = Math.max(1, Math.floor(rounds / maxSampleRate))
         const chartData = this.data.filter(row => row.round % sampleRate === 0)
         this.setState({ chartData });
-        this.resetPage = true
     }
 
     computeRow = (round, pair) => {
@@ -272,7 +277,7 @@ class App extends Component {
                         </label>
                         <label>
                             Mode:
-                            <select onChange={e => this.setState({ simulate: e.target.value === 'simulation' })}>
+                            <select onChange={e => this.changeMode(e.target.value)}>
                                 <option value="manual">Manual</option>
                                 <option value="simulation">Simulate</option>
                             </select>
@@ -294,8 +299,8 @@ class App extends Component {
                                 <strong>Bet:</strong>
                                 <input value={this.betDifference()} style={{width: 50}} readOnly/>
                             </label>
-                            <button onClick={() => this.nextBet(true)} disabled={!this.pairs}>Won</button>
-                            <button onClick={() => this.nextBet(false)} disabled={!this.pairs}>Lost</button>
+                            <button onClick={() => this.nextBet(true)} disabled={!this.bets}>Won</button>
+                            <button onClick={() => this.nextBet(false)} disabled={!this.bets}>Lost</button>
                             <label><strong>Total: {this.total}</strong></label>
                         </div>
                     }
