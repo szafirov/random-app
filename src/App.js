@@ -32,6 +32,45 @@ class App extends Component {
             betSumAt0: 0,
             betSumAt1: 0,
         }
+
+        this.manualColumns = [
+            {
+                Header: 'Round',
+                accessor: 'round',
+                sortable: false
+            }, {
+                Header: 'Bet ($)',
+                accessor: 'bet',
+                sortable: false
+            }, {
+                Header: 'Out',
+                accessor: 'outcome',
+                sortable: false,
+                // Cell: row => row.value ? 'P' : 'B'
+            }, {
+                Header: 'Match',
+                accessor: 'match',
+                Cell: row => (
+                    <span style={{
+                        color: row.value === 'L' ? '#ff2e00' : '#57d500',
+                        transition: 'all .3s ease'
+                    }}>{row.value}</span>
+                ),
+                sortable: false
+            }, {
+                Header: 'Gain',
+                accessor: 'gain',
+                sortable: false
+            }, {
+                Header: 'Total',
+                accessor: 'total',
+                sortable: false
+            }, {
+                Header: 'Max',
+                accessor: 'max',
+                sortable: false
+            }
+        ]
         this.columns = [
             {
                 Header: 'Round',
@@ -57,7 +96,7 @@ class App extends Component {
                 Header: 'Out',
                 accessor: 'outcome',
                 sortable: false,
-                Cell: row => row.value ? 'P' : 'B'
+                // Cell: row => row.value ? 'P' : 'B'
             }, {
                 Header: 'Match',
                 accessor: 'match',
@@ -85,6 +124,17 @@ class App extends Component {
             column.maxWidth = 75
             return column
         })
+
+        this.manualColumns = this.columns.filter(col =>
+            [
+                'round',
+                'bet',
+                'outcome',
+                'match',
+                'gain',
+                'total',
+                'max'
+            ].includes(col.accessor))
 
         this.viewPageFor = (currentRow, currentPair) => {
             const computePage = row => Math.floor(row / 20)
@@ -129,28 +179,38 @@ class App extends Component {
         this.setState({ betSumAt0, betSumAt1 })
     }
 
-    nextBet = (outcome) => {
-        const rows = this.pairs.map(pair => {
-            const row = pair.evolve(outcome)
-            row.round = this.round
-            row.pair = pair.index
-            return row
-        })
-        // console.debug(JSON.stringify(rows))
-        this.total += this.pairs.map(pair => pair.gain).reduce((a, b) => a + b)
+    betDifference = () => {
+        const { betSumAt0, betSumAt1 } = this.state
+        return Math.abs(betSumAt0 - betSumAt1)
+    }
+
+    nextBet = (won) => {
+        const { betSumAt0, betSumAt1 } = this.state
+        const outcome = betSumAt1 > betSumAt0 === won ? 1 : 0
+        this.pairs.forEach(pair => pair.evolve(outcome))
+        const gain = this.pairs.map(pair => pair.gain).reduce((a, b) => a + b)
+        this.total += gain
         if (this.total >= this.max) {
-            this.pairs.filter(pair => pair.players[0].level > 0).forEach(pair => pair.resetLevel())
+            this.pairs
+                .filter(pair => pair.players[0].level > 0)
+                .forEach(pair => pair.resetLevel())
         }
         this.max = Math.max(this.max, this.total)
-        this.data = this.data.concat(rows.map(row => ({
-            ...row,
+        this.round = this.round + 1
+        this.data = this.data.concat({
+            round: this.round,
+            pair: 0,
+            bet: this.betDifference(),
+            outcome,
+            match: won ? 'W' : 'L',
+            gain,
             total: this.total,
             max: this.max
-        })))
-        this.round++
+        })
+        console.debug(JSON.stringify(this.data))
         this.runManual()
         this.displayChartAndTable()
-        this.viewPageFor(this.round - 1, 0)
+        this.viewPageFor(this.round, 0)
     }
 
     runSimulation = () => {
@@ -169,6 +229,7 @@ class App extends Component {
                 max: this.max
             }))
         })
+        console.debug(JSON.stringify(this.data))
         this.displayChartAndTable(rounds)
         this.viewPageFor(0, 0)
     }
@@ -192,11 +253,11 @@ class App extends Component {
     }
 
     render() {
-        const {defense, pairs, rounds, chartData, tableData, currentPair, currentRow, simulate, betSumAt0, betSumAt1} = this.state
+        const {defense, pairs, rounds, chartData, tableData, currentPair, currentRow, simulate} = this.state
         return (
             <div className="app">
                 <div className="container">
-                    <div style={{width: 600}}>
+                    <div style={{width: 700}}>
                         <label>
                             Defense: <input type="number" min="2" max="10" value={defense} style={{ width: 30 }}
                                             onChange={e => this.setState({defense: parseInt(e.target.value, 10)})}/>
@@ -206,16 +267,17 @@ class App extends Component {
                                           onChange={e => this.setState({pairs: parseInt(e.target.value, 10)})}/>
                         </label>
                         <label>
-                            Simulate: <input type="checkbox" checked={simulate}
-                                             onChange={e => this.setState({ simulate: e.target.checked })} />
+                            Rounds: <input type="number" min="0" max="10000" value={rounds} style={{ width: 60 }} disabled={!simulate}
+                                           onChange={e => this.setState({rounds: parseInt(e.target.value, 10)})}/>
                         </label>
-                        {simulate ?
-                            <label>
-                                Rounds: <input type="number" min="0" max="10000" value={rounds} style={{ width: 60 }}
-                                               onChange={e => this.setState({rounds: parseInt(e.target.value, 10)})}/>
-                            </label> : ''
-                        }
-                        <button className="app-btn" onClick={this.start}>Start</button>
+                        <label>
+                            Mode:
+                            <select onChange={e => this.setState({ simulate: e.target.value === 'simulation' })}>
+                                <option value="manual">Manual</option>
+                                <option value="simulation">Simulate</option>
+                            </select>
+                        </label>
+                        <button onClick={this.start}>Start</button>
                     </div>
                     {simulate ?
                         <div style={{width: 600}}>
@@ -228,17 +290,18 @@ class App extends Component {
                         </div>
                         :
                         <div style={{width: 600}}>
-                            <button onClick={() => this.nextBet(0)}>Bank</button>: {betSumAt0}
-                            <label><strong>Bet:</strong>
-                                <input value={Math.abs(betSumAt0 - betSumAt1)} style={{width: 50}} readOnly/>
+                            <label>
+                                <strong>Bet:</strong>
+                                <input value={this.betDifference()} style={{width: 50}} readOnly/>
                             </label>
-                            <button onClick={() => this.nextBet(1)}>Player</button>: {betSumAt1}
+                            <button onClick={() => this.nextBet(true)} disabled={!this.pairs}>Won</button>
+                            <button onClick={() => this.nextBet(false)} disabled={!this.pairs}>Lost</button>
                             <label><strong>Total: {this.total}</strong></label>
                         </div>
                     }
                 </div>
                 <div className="container">
-                    <AreaChart width={600}
+                    <AreaChart width={700}
                                height={700}
                                data={chartData}
                                margin={this.chart.margins}>
@@ -257,7 +320,7 @@ class App extends Component {
                     </AreaChart>
                     <ReactTable
                         data={tableData}
-                        columns={this.columns}
+                        columns={simulate ? this.columns : this.manualColumns   }
                         showPagination={false}
                         className="table -highlight"
                         getTrProps={(state, rowInfo) => ({
