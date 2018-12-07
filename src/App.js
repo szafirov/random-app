@@ -192,7 +192,7 @@ class App extends Component {
     }
 
     nextBet = (won) => {
-        const outcome = (this.bets[0] > this.bets[1]) === won ? 1 : 0
+        const outcome = (this.bets[1] > this.bets[0]) === won ? 1 : 0
         this.pairs.forEach(pair => pair.evolve(outcome))
         const gain = this.pairs.map(pair => pair.gain).reduce((a, b) => a + b)
         this.total += gain
