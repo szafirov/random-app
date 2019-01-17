@@ -1,11 +1,13 @@
 import React, {Component} from 'react';
 import './App.css';
-import Pair from './Pair.js';
 
 import {Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis} from 'recharts';
 
 import ReactTable from 'react-table';
 import 'react-table/react-table.css'
+import VirtualPlayer from './VirtualPlayer';
+
+const randomOutcome = () => Math.random() > 0.5 ? 1 : 0
 
 class App extends Component {
 
@@ -14,7 +16,7 @@ class App extends Component {
         this.chart = {
             margins: {
                 top: 10,
-                right: 30,
+                right: 10,
                 left: 0,
                 bottom: 0,
             }
@@ -25,51 +27,13 @@ class App extends Component {
             pairs: 10,
             chartData: [],
             tableData: [],
-            simulate: false,
+            mode: 'simulateTwoPlayers',
             currentRow: 0,
             currentPair: 0,
             currentPage: 1
         }
 
-        this.manualColumns = [
-            {
-                Header: 'Round',
-                accessor: 'round',
-                sortable: false
-            }, {
-                Header: 'Bet ($)',
-                accessor: 'bet',
-                sortable: false
-            }, {
-                Header: 'Out',
-                accessor: 'outcome',
-                sortable: false,
-                // Cell: row => row.value ? 'P' : 'B'
-            }, {
-                Header: 'Match',
-                accessor: 'match',
-                Cell: row => (
-                    <span style={{
-                        color: row.value === 'L' ? '#ff2e00' : '#57d500',
-                        transition: 'all .3s ease'
-                    }}>{row.value}</span>
-                ),
-                sortable: false
-            }, {
-                Header: 'Gain',
-                accessor: 'gain',
-                sortable: false
-            }, {
-                Header: 'Total',
-                accessor: 'total',
-                sortable: false
-            }, {
-                Header: 'Max',
-                accessor: 'max',
-                sortable: false
-            }
-        ]
-        this.columns = [
+        const columns = [
             {
                 Header: 'Round',
                 accessor: 'round',
@@ -110,6 +74,14 @@ class App extends Component {
                 accessor: 'gain',
                 sortable: false
             }, {
+                Header: 'Total1',
+                accessor: 'total1',
+                sortable: false
+            }, {
+                Header: 'Total2',
+                accessor: 'total2',
+                sortable: false
+            }, {
                 Header: 'Total',
                 accessor: 'total',
                 sortable: false
@@ -123,95 +95,114 @@ class App extends Component {
             return column
         })
 
-        this.manualColumns = this.columns.filter(col =>
-            [
-                'round',
-                'bet',
-                'outcome',
-                'match',
-                'gain',
-                'total',
-                'max'
-            ].includes(col.accessor))
+        this.columns = {
+            simulatePairs: columns.filter(col => ![
+                'total1',
+                'total2'
+            ].includes(col.accessor)),
+            manualPlayer: columns.filter(col =>
+                [
+                    'round',
+                    'bet',
+                    'outcome',
+                    'match',
+                    'gain',
+                    'total',
+                    'max'
+                ].includes(col.accessor)),
+            simulateTwoPlayers: columns.filter(col =>
+                [
+                    'round',
+                    'outcome',
+                    'total1',
+                    'total2',
+                    'total'
+                ].includes(col.accessor)),
+        }
 
         this.viewPageFor = (currentRow, currentPair, resetPage) => {
             const computePage = row => Math.floor(row / 20)
             const currentPage = computePage(currentRow)
             if (this.state.currentRow !== currentRow || this.state.currentPair !== currentPair || resetPage) {
                 // console.debug(currentRow, currentPair, currentPage)
+                const tableData = this.data.filter(row => 
+                    computePage(row.round) === currentPage && row.pair === currentPair)
                 this.setState({
                     currentRow,
                     currentPage,
                     currentPair,
-                    tableData: this.data.filter(row => computePage(row.round) === currentPage && row.pair === currentPair)
+                    tableData,
                 })
             }
         }
     }
 
     changeMode = (mode) => {
-        this.setState({ simulate: mode === 'simulation' })
+        this.setState({ mode })
         this.resetData()
     }
 
     resetData = () => {
         this.round = 0
         this.bets = undefined
-        this.max = 0
-        this.total = 0
         this.data = []
         const { defense, pairs } = this.state
-        this.pairs = [...Array(pairs).keys()].map(index => new Pair(index, defense))
+        this.vp1 = new VirtualPlayer(pairs, defense)
+        this.vp2 = new VirtualPlayer(pairs, defense)
         this.setState({ chartData: [] });
         this.viewPageFor(0, 0, 'resetPage')
     }
 
     start = () => {
         this.resetData()
-        if (this.state.simulate) {
-            this.runSimulation()
-        } else {
-            this.runManual()
+        switch (this.state.mode) {
+            case 'simulatePairs': this.runPairSimulation(); break
+            case 'manualPlayer': this.runManual(); break
+            case 'simulateTwoPlayers': this.runTwoPlayerSimulation(); break
+            default: console.error(this.state.mode); break
         }
     }
 
-    runManual = () => {
-        this.pairs.forEach(pair => {
-            const randomSlot = Math.random() > 0.5 ? 1 : 0
-            pair.placeBets(randomSlot)
+    runTwoPlayerSimulation = () => {
+        const { rounds } = this.state
+        this.data = [...Array(rounds).keys()].flatMap(round => {
+            const outcome = randomOutcome()
+            this.vp1.placeRandomBets()
+            this.vp2.placeRandomBets()
+            this.round = this.round + 1
+            this.vp1.evolve(outcome, this.round)
+            this.vp2.evolve(1 - outcome, this.round)
+            return {
+                round: this.round,
+                pair: 0,
+                outcome,
+                total1: this.vp1.total,
+                total2: this.vp2.total,
+                total: this.vp1.total + this.vp2.total    
+            }
         })
-        const betSum = slot => this.pairs
-            .map(pair => pair.playerBySlot(slot))
-            .map(player => player.bet)
-            .reduce((a, b) => a + b)
-        this.bets = [betSum(0), betSum(1)]
+        this.displayChartAndTable(rounds)
+        this.viewPageFor(0, 0, 'resetPage')
     }
 
-    betDifference = () => {
-        return this.bets && Math.abs(this.bets[0] - this.bets[1])
+    runManual = () => {
+        this.vp1.placeRandomBets()
+        this.bets = this.vp1.bets()
     }
 
     nextBet = (won) => {
         const outcome = (this.bets[1] > this.bets[0]) === won ? 1 : 0
-        this.pairs.forEach(pair => pair.evolve(outcome))
-        const gain = this.pairs.map(pair => pair.gain).reduce((a, b) => a + b)
-        this.total += gain
-        if (this.total >= this.max) {
-            this.pairs
-                .filter(pair => pair.players[0].level > 0)
-                .forEach(pair => pair.resetLevel())
-        }
-        this.max = Math.max(this.max, this.total)
         this.round = this.round + 1
+        this.vp1.evolve(outcome, this.round)
         this.data = this.data.concat({
             round: this.round,
             pair: 0,
             bet: this.betDifference(),
             outcome,
             match: won ? 'W' : 'L',
-            gain,
-            total: this.total,
-            max: this.max
+            gain: this.vp1.gain,
+            total: this.vp1.total,
+            max: this.vp1.max
         })
         // console.debug(JSON.stringify(this.data))
         this.runManual()
@@ -219,21 +210,18 @@ class App extends Component {
         this.viewPageFor(this.round, 0)
     }
 
-    runSimulation = () => {
+    betDifference = () => {
+        return this.bets && Math.abs(this.bets[0] - this.bets[1])
+    }
+
+    runPairSimulation = () => {
         const { rounds } = this.state
         this.data = [...Array(rounds).keys()].flatMap(round => {
-            const rows = this.pairs.map(pair => this.computeRow(round, pair))
+            this.vp1.placeRandomBets()
+            const outcome = randomOutcome()
+            const rows = this.vp1.evolve(outcome, round)
             // console.debug(JSON.stringify(rows))
-            this.total += this.pairs.map(pair => pair.gain).reduce((a, b) => a + b)
-            if (this.total >= this.max) {
-                this.pairs.filter(pair => pair.players[0].level > 0).forEach(pair => pair.resetLevel())
-            }
-            this.max = Math.max(this.max, this.total)
-            return rows.map(row => ({
-                ...row,
-                total: this.total,
-                max: this.max
-            }))
+            return rows
         })
         // console.debug(JSON.stringify(this.data))
         this.displayChartAndTable(rounds)
@@ -247,18 +235,42 @@ class App extends Component {
         this.setState({ chartData });
     }
 
-    computeRow = (round, pair) => {
-        const randomSlot = Math.random() > 0.5 ? 1 : 0
-        pair.placeBets(randomSlot)
-        const outcome = Math.random() > 0.5 ? 1 : 0
-        const row = pair.evolve(outcome)
-        row.round = round
-        row.pair = pair.index
-        return row
-    }
-
     render() {
-        const {defense, pairs, rounds, chartData, tableData, currentPair, currentRow, simulate} = this.state
+        const {
+            defense,
+            pairs,
+            rounds,
+            chartData, 
+            tableData, 
+            currentPair, 
+            currentRow, 
+            mode
+        } = this.state
+
+        const controls = {
+            simulatePairs: 
+                <div style={{width: 600}}>
+                    <label>
+                        <select value={currentPair}
+                                onChange={e => this.viewPageFor(this.state.currentRow, parseInt(e.target.value, 10))}>
+                            {[...Array(this.state.pairs).keys()].map(p => <option key={p} value={p}>Pair {p + 1}</option>)}
+                        </select>
+                    </label>
+                </div>,
+            manualPlayer:
+                <div style={{width: 600}}>
+                    <label>
+                        <strong>Bet:</strong>
+                        <input value={this.betDifference()} style={{width: 50}} readOnly/>
+                    </label>
+                    <button onClick={() => this.nextBet(true)} disabled={!this.bets}>Won</button>
+                    <button onClick={() => this.nextBet(false)} disabled={!this.bets}>Lost</button>
+                    <label><strong>Total: {this.vp1 ? this.vp1.total : 0}</strong></label>
+                </div>,
+            simulateTwoPlayers:
+                <div style={{width: 600}}>
+                </div>
+        }
         return (
             <div className="app">
                 <div className="container">
@@ -272,38 +284,20 @@ class App extends Component {
                                           onChange={e => this.setState({pairs: parseInt(e.target.value, 10)})}/>
                         </label>
                         <label>
-                            Rounds: <input type="number" min="0" max="10000" value={rounds} style={{ width: 60 }} disabled={!simulate}
+                            Rounds: <input type="number" min="0" max="10000" value={rounds} style={{ width: 60 }}
                                            onChange={e => this.setState({rounds: parseInt(e.target.value, 10)})}/>
                         </label>
                         <label>
                             Mode:
-                            <select onChange={e => this.changeMode(e.target.value)}>
-                                <option value="manual">Manual</option>
-                                <option value="simulation">Simulate</option>
+                            <select value={mode} onChange={e => this.changeMode(e.target.value)} style={{ width: 130 }}>
+                                <option value="simulateTwoPlayers">Sim 2 Players</option>
+                                <option value="manualPlayer">Manual Player</option>
+                                <option value="simulatePairs">Sim Pairs</option>
                             </select>
                         </label>
                         <button onClick={this.start}>Start</button>
                     </div>
-                    {simulate ?
-                        <div style={{width: 600}}>
-                            <label>
-                                <select value={currentPair}
-                                        onChange={e => this.viewPageFor(this.state.currentRow, parseInt(e.target.value, 10))}>
-                                    {[...Array(this.state.pairs).keys()].map(p => <option key={p} value={p}>Pair {p + 1}</option>)}
-                                </select>
-                            </label>
-                        </div>
-                        :
-                        <div style={{width: 600}}>
-                            <label>
-                                <strong>Bet:</strong>
-                                <input value={this.betDifference()} style={{width: 50}} readOnly/>
-                            </label>
-                            <button onClick={() => this.nextBet(true)} disabled={!this.bets}>Won</button>
-                            <button onClick={() => this.nextBet(false)} disabled={!this.bets}>Lost</button>
-                            <label><strong>Total: {this.total}</strong></label>
-                        </div>
-                    }
+                    {controls[mode]}
                 </div>
                 <div className="container">
                     <AreaChart width={700}
@@ -322,10 +316,20 @@ class App extends Component {
                               stroke='#8884d8'
                               fill='#8884d8'
                               isAnimationActive={false}/>
+                        <Area type='monotone'
+                              dataKey='total1'
+                              fill='#08a408'
+                              stroke='#08a408'
+                              isAnimationActive={false}/>
+                        <Area type='monotone'
+                              dataKey='total2'
+                              fill='#a82408'
+                              stroke='#a82408'
+                              isAnimationActive={false}/>
                     </AreaChart>
                     <ReactTable
                         data={tableData}
-                        columns={simulate ? this.columns : this.manualColumns   }
+                        columns={this.columns[mode]}
                         showPagination={false}
                         className="table -highlight"
                         getTrProps={(state, rowInfo) => ({
