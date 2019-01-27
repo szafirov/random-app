@@ -103,35 +103,34 @@ class App extends Component {
             return column
         })
 
-        switch (this.state.mode) {
-            case 'simulatePairs':
-                this.columns = columns.filter(col => ![
-                    'total1',
-                    'total2'
-                ].includes(col.accessor))
-                break;
-            case 'manualPlayer':
-                this.columns = columns.filter(col =>
-                    [
-                        'round',
-                        'bet',
-                        'outcome',
-                        'match',
-                        'gain',
-                        'total',
-                        'max'
-                    ].includes(col.accessor))
-                break;
-            default:
-                this.columns = columns.filter(col =>
-                    [
-                        'round',
-                        'outcome',
+        this.columnsForMode = (mode) => {
+            switch (mode) {
+                case 'simulatePairs':
+                    return columns.filter(col => ![
                         'total1',
-                        'total2',
-                        'total'
+                        'total2'
                     ].includes(col.accessor))
-                break;
+                case 'manualPlayer':
+                    return columns.filter(col =>
+                        [
+                            'round',
+                            'bet',
+                            'outcome',
+                            'match',
+                            'gain',
+                            'total',
+                            'max'
+                        ].includes(col.accessor))
+                default:
+                    return columns.filter(col =>
+                        [
+                            'round',
+                            'outcome',
+                            'total1',
+                            'total2',
+                            'total'
+                        ].includes(col.accessor))
+            }
         }
 
         this.viewPageFor = (currentRow, currentPair, resetPage) => {
@@ -347,7 +346,7 @@ class App extends Component {
                     </AreaChart>
                     <ReactTable
                         data={tableData}
-                        columns={this.columns}
+                        columns={this.columnsForMode(this.state.mode)}
                         showPagination={false}
                         className="table -highlight"
                         getTrProps={(state, rowInfo) => ({
