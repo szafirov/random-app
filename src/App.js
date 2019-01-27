@@ -307,8 +307,8 @@ class App extends Component {
                             Mode:
                             <select value={mode} onChange={e => this.changeMode(e.target.value)} style={{ width: 130 }}>
                                 <option value="simulateRandom">Sim Rand</option>
-                                <option value="simulate1010">Sim 1010</option>
-                                <option value="simulate1100">Sim 1100 Players</option>
+                                <option value="simulate1010">Sim 1010&hellip;</option>
+                                <option value="simulate1100">Sim 1100&hellip;</option>
                                 <option value="manualPlayer">Manual</option>
                                 <option value="simulatePairs">Sim Pairs</option>
                             </select>
