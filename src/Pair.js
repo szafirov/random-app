@@ -1,15 +1,18 @@
+import Random from 'random-js';
 import Player from './Player'
 
 export default class Pair {
 
     constructor(index, defense) {
         this.index = index
+        this.random = new Random(Random.engines.mt19937().autoSeed());
         this.players = [new Player(defense), new Player(defense)]
     }
 
-    placeBets(slot) {
-        this.players[0].placeBet(slot)
-        this.players[1].placeBet(1 - slot)
+    placeBets() {
+        const randomSlot = this.random.bool() ? 1 : 0
+        this.players[0].placeBet(randomSlot)
+        this.players[1].placeBet(1 - randomSlot)
     }
 
     playerBySlot(slot) {

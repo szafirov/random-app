@@ -19,6 +19,8 @@ export default class Player {
         this.index = 0
         this.level = 0
         this.star = false
+        this.slot = 0
+        this.bet = 0
     }
 
     placeBet(slot) {
