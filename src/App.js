@@ -85,9 +85,9 @@ class App extends Component {
                     return [
                         column('Round', 'round'),
                         column('Slot 1', 'slot1'),
+                        column('Slot 2', 'slot2'),
                         column('Bet 1', 'bet1'),
                         column('Bet 2', 'bet2'),
-                        column('Slot 2', 'slot2'),
                         column('Out', 'outcome'), 
                         column('Total 1', 'total1'),
                         column('Total 2', 'total2'),
