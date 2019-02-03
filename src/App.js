@@ -83,10 +83,10 @@ class App extends Component {
                 default:
                     return [
                         column('Round', 'round'),
-                        column('Slot', 'slot'),
                         column('BRP1', 'bet1'),
                         column('BRP2', 'bet2'),
                         column('Bet', 'bet'),
+                        column('Slot', 'slot'),
                         column('Out', 'outcome'),
                         matchCol,
                         column('TRP1', 'total1'),
