@@ -11,21 +11,26 @@ export default class VirtualPlayer {
         this.pairs.forEach(pair => pair.placeBets())
         return this.betAmount()
     }
-    computeRowsAndEvolve(outcome, won) {
-        const rows = this.pairs.map(pair => pair.computeRow(outcome))
-        this.evolve(outcome, won)
+    computeRows(outcome) {
+        const rows = this.pairs.map(pair => pair.computeGain(outcome))
+        this.gain = this.pairs.map(pair => pair.gain).reduce((a, b) => a + b)
+        this.total += this.gain
         return rows.map((row, pair) => ({
             ...row,
             pair,
-            gain: this.gain,
+            allPairsGain: this.gain,
             total: this.total,
             max: this.max
         }))
     }
-    evolve(outcome, won) {
-        this.pairs.forEach(pair => pair.evolve(outcome))
+    evolveIfWon(outcome, won) {
+        this.pairs.map(pair => pair.computeGain(outcome))
         this.gain = (won ? 1 : -1) * this.betAmount()
         this.total += this.gain
+        this.evolve(outcome)
+    }
+    evolve(outcome) {
+        this.pairs.forEach(pair => pair.evolve(outcome))
         if (this.total >= this.max) this.pairs
             .filter(pair => pair.players[0].level > 0)
             .forEach(pair => pair.resetLevel())

@@ -20,18 +20,19 @@ export default class Pair {
         return this.players[0].slot === slot ? this.players[0] : this.players[1]
     }
 
-    computeRow(outcome) {
+    computeGain(outcome) {
+        this.players.forEach(p => p.computeGain(outcome))
         const formatIndex = player => player.index + (player.star ? '*' : '')
-        const gain = this.players[0].gain + this.players[1].gain
+        this.gain = this.players[0].gain + this.players[1].gain
         const formatGain = gain => (gain >= 0 ? '+' : '-') + Math.abs(gain)
-        const format = (prop) => this.players.map(p => p[prop]).join(':')
+        const formatProperty = (prop) => this.players.map(p => p[prop]).join(':')
         return {
             index: this.players.map(formatIndex).join(':'),
             level: this.level,
-            slot: format('slot'),
-            bet: format('bet'),
+            slot: formatProperty('slot'),
+            bet: formatProperty('bet'),
             match: this.players[0].won ? 'W:L' : 'L:W',
-            gain: this.players.map(p => formatGain(p.gain)).join() + '=' + gain,
+            gain: this.players.map(p => formatGain(p.gain)).join(''),
             outcome,
         }
     }

@@ -29,9 +29,12 @@ export default class Player {
         this.bet = levelMultiplier * this.defense ** this.level
     }
 
-    evolve(outcome) {
+    computeGain(outcome) {
         this.won = this.slot === outcome
         this.gain = (this.won ? 1 : -1) * this.bet
+    }
+
+    evolve() {
         const nextStar = this.won && this.index < 5 && this.index !== 3 && !this.star
         this.index = increment(this.won, this.index, this.star)
         this.star = nextStar

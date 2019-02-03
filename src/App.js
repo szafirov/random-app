@@ -58,16 +58,17 @@ class App extends Component {
             switch (mode) {
                 case 'simulatePairs':
                     return [
-                        column('Round', 'round'),
-                        column('Level', 'level'),
-                        column('Index', 'index'),
-                        column('Slot', 'slot'),
-                        column('Bet', 'bet'),
-                        column('Out', 'outcome'),
+                        column('Round', 'round', 60),
+                        column('Level', 'level', 50),
+                        column('Index', 'index', 60),
+                        column('Slot', 'slot', 50),
+                        column('Bet', 'bet', 50),
+                        column('Out', 'outcome', 50),
                         matchCol,
-                        column('Gain', 'gain'),
-                        column('Total', 'total'),
-                        column('Max', 'max')
+                        column('Pair Gain', 'gain', 100),
+                        column('Total Gain', 'allPairsGain', 90),
+                        column('Total', 'total', 60),
+                        column('Max', 'max', 50)
                     ]
                 case 'manual':
                     return [
@@ -158,8 +159,8 @@ class App extends Component {
             const won = slot === outcome
             const won1 = won === (bet1 >= bet2)
             const won2 = won === (bet1 < bet2)
-            this.vp1.evolve(outcome, won1)
-            this.vp2.evolve(outcome, won2)
+            this.vp1.evolveIfWon(outcome, won1)
+            this.vp2.evolveIfWon(outcome, won2)
             return {
                 round,
                 pair: 0,
@@ -187,7 +188,7 @@ class App extends Component {
         this.round = this.round + 1
         if (won) this.won = this.won + 1
         const outcome = randomOutcome()
-        this.vp1.computeRowsAndEvolve(outcome, won)
+        this.vp1.evolveIfWon(outcome, won)
         this.data = this.data.concat({
             round: this.round,
             pair: 0,
@@ -210,8 +211,8 @@ class App extends Component {
         this.data = [...Array(rounds).keys()].flatMap(round => {
             this.vp1.placeBets()
             const outcome = randomOutcome()
-            const slot = randomSlot()
-            const rows = this.vp1.computeRowsAndEvolve(outcome, slot === outcome)
+            const rows = this.vp1.computeRows(outcome)
+            this.vp1.evolve(outcome)
             // console.debug(JSON.stringify(rows))
             return rows.map(row => ({...row, round}))
         })
