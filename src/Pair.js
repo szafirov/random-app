@@ -3,8 +3,9 @@ import Player from './Player'
 
 export default class Pair {
 
-    constructor(index, defense) {
-        this.index = index
+    constructor(id, defense) {
+        this.id = id
+        this.level = 0
         this.random = new Random(Random.engines.mt19937().autoSeed());
         this.players = [new Player(defense), new Player(defense)]
     }
@@ -19,13 +20,10 @@ export default class Pair {
         return this.players[0].slot === slot ? this.players[0] : this.players[1]
     }
 
-    evolve(outcome) {
-        this.players.forEach(p => p.evolve(outcome))
-        this.gain = this.players[0].gain + this.players[1].gain
-        this.level = Math.max(this.players[0].level, this.players[1].level)
-        this.players.forEach(p => p.level = this.level)
-        const formatGain = gain => (gain >= 0 ? '+' : '-') + Math.abs(gain)
+    computeRow(outcome) {
         const formatIndex = player => player.index + (player.star ? '*' : '')
+        const gain = this.players[0].gain + this.players[1].gain
+        const formatGain = gain => (gain >= 0 ? '+' : '-') + Math.abs(gain)
         const format = (prop) => this.players.map(p => p[prop]).join(':')
         return {
             index: this.players.map(formatIndex).join(':'),
@@ -33,9 +31,15 @@ export default class Pair {
             slot: format('slot'),
             bet: format('bet'),
             match: this.players[0].won ? 'W:L' : 'L:W',
-            gain: this.players.map(p => formatGain(p.gain)).join() + '=' + this.gain,
+            gain: this.players.map(p => formatGain(p.gain)).join() + '=' + gain,
             outcome,
         }
+    }
+
+    evolve(outcome) {
+        this.players.forEach(p => p.evolve(outcome))
+        this.level = Math.max(this.players[0].level, this.players[1].level)
+        this.players.forEach(p => p.level = this.level)
     }
 
     resetLevel() {
