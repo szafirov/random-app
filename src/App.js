@@ -21,7 +21,7 @@ const gen1100 = () => {
     let i = 0;
     return () => i++ % 4 < 2 ? 1 : 0
 }
-const column = (Header, accessor, width = 65) => ({ Header, accessor, width, sortable: false })
+const column = (Header, accessor, width = 50) => ({ Header, accessor, width, sortable: false })
 
 class App extends Component {
     constructor(props) {
@@ -39,14 +39,15 @@ class App extends Component {
             defense: 2,
             pairs: 10,
             chartData: [],
-            tableData: [],
+            pageData: [],
             mode: 'simRPRand',
             currentRow: 0,
             currentPair: 0,
-            currentPage: 1
+            currentPage: 1,
+            pageCount: 0,
         }
         const matchCol = {
-            ...column('Match', 'match'),
+            ...column('Match', 'match', 60),
             Cell: row => (
                 <span style={{
                     color: row.value === 'L' ? '#ff2e00' : '#57d500',
@@ -59,55 +60,61 @@ class App extends Component {
                 case 'simulatePairs':
                     return [
                         column('Round', 'round', 60),
-                        column('Level', 'level', 50),
+                        column('Level', 'level'),
                         column('Index', 'index', 60),
-                        column('Slot', 'slot', 50),
-                        column('Bet', 'bet', 50),
-                        column('Out', 'outcome', 50),
+                        column('Slot', 'slot'),
+                        column('Bet', 'bet'),
+                        column('Out', 'outcome'),
                         matchCol,
-                        column('Pair Gain', 'gain', 100),
-                        column('Total Gain', 'allPairsGain', 90),
+                        column('Pair Gain', 'pairGain', 90),
+                        column('Gain', 'gain'),
                         column('Total', 'total', 60),
-                        column('Max', 'max', 50)
+                        column('Max', 'max', 60)
                     ]
                 case 'manual':
                     return [
-                        column('Round', 'round'),
+                        column('Round', 'round', 60),
                         column('Bet', 'bet'),
                         column('Out', 'outcome'),
                         column('Slot', 'slot'),
                         matchCol,
                         column('Gain', 'gain'),
-                        column('Total', 'total'),
-                        column('Max', 'max')
+                        column('Total', 'total', 60),
+                        column('Max', 'max', 60)
                     ]
                 default:
                     return [
-                        column('Round', 'round'),
-                        column('BRP1', 'bet1'),
-                        column('BRP2', 'bet2'),
+                        column('Round', 'round', 60),
+                        column('BRP1', 'bet1', 60),
+                        column('BRP2', 'bet2', 60),
                         column('Bet', 'bet'),
                         column('Slot', 'slot'),
                         column('Out', 'outcome'),
                         matchCol,
-                        column('TRP1', 'total1'),
-                        column('TRP2', 'total2'),
-                        column('Total', 'total'),
+                        column('TRP1', 'total1', 60),
+                        column('TRP2', 'total2', 60),
+                        column('Total', 'total', 60),
+                        column('Max', 'max', 60)
                     ]
             }
         }
-        this.viewPageFor = (currentRow, currentPair, resetPage) => {
-            const computePage = row => Math.floor(row / 20)
-            const currentPage = computePage(currentRow)
-            if (this.state.currentRow !== currentRow || this.state.currentPair !== currentPair || resetPage) {
-                // console.debug(currentRow, currentPair, currentPage)
-                const tableData = this.data.filter(row =>
-                    computePage(row.round) === currentPage && row.pair === currentPair)
+        this.pageSize = 20
+        this.scroll = (direction) => {
+            const { currentRow, currentPair } = this.state
+            this.viewPageFor(currentRow + direction * this.pageSize, currentPair)
+        }
+        this.viewPageFor = (row, pair, resetPage) => {
+            const { currentPage } = this.state
+            const computePage = row => Math.floor(row / this.pageSize) + 1
+            const page = computePage(row)
+            // console.debug(row, page, currentPage)
+            if (currentPage !== page || this.state.currentPair !== pair || resetPage) {
+                const pageData = this.data.filter(row => computePage(row.round) === page && row.pair === pair)
                 this.setState({
-                    currentRow,
-                    currentPage,
-                    currentPair,
-                    tableData,
+                    currentRow: row,
+                    currentPage: page,
+                    currentPair: pair,
+                    pageData,
                 })
             }
         }
@@ -125,13 +132,14 @@ class App extends Component {
         this.won = 0
         this.bets = undefined
         this.data = []
+        this.max = 0
         const { defense, pairs } = this.state
         this.vp1 = new VirtualPlayer(pairs, defense)
         this.vp2 = new VirtualPlayer(pairs, defense)
     }
 
     resetView() {
-        this.setState({ chartData: [] });
+        this.setState({ chartData: [], pageCount: 0 });
         this.viewPageFor(0, 0, 'resetPage')
     }
 
@@ -159,8 +167,14 @@ class App extends Component {
             const won = slot === outcome
             const won1 = won === (bet1 >= bet2)
             const won2 = won === (bet1 < bet2)
-            this.vp1.evolveIfWon(outcome, won1)
-            this.vp2.evolveIfWon(outcome, won2)
+            this.vp1.computeGain(outcome, won1)
+            this.vp2.computeGain(outcome, won2)
+            const total = this.vp1.total + this.vp2.total
+            const resetLevels = this.max > 0 && total > this.max &&
+                (this.vp1.hasLevelToReset() || this.vp2.hasLevelToReset())
+            this.vp1.evolve(outcome, resetLevels)
+            this.vp2.evolve(outcome, resetLevels)
+            this.max = Math.max(this.max, total)
             return {
                 round,
                 pair: 0,
@@ -172,7 +186,9 @@ class App extends Component {
                 match: won ? 'W' : 'L',
                 total1: this.vp1.total,
                 total2: this.vp2.total,
-                total: this.vp1.total + this.vp2.total
+                total,
+                max: this.max,
+                resetLevels
             }
 
         })
@@ -185,25 +201,30 @@ class App extends Component {
     }
 
     nextBet = (won) => {
-        this.round = this.round + 1
         if (won) this.won = this.won + 1
         const outcome = randomOutcome()
-        this.vp1.evolveIfWon(outcome, won)
+        const slot = won ? outcome : 1 - outcome
+        this.vp1.computeGain(outcome, won)
+        const total = this.vp1.total
+        const resetLevels = this.max > 0 && total > this.max && this.vp1.hasLevelToReset()
+        this.vp1.evolve(outcome, resetLevels)
+        this.max = Math.max(this.max, total)
         this.data = this.data.concat({
             round: this.round,
             pair: 0,
             bet: this.vp1.betAmount(),
-            slot: won ? outcome : 1 - outcome,
+            slot,
             outcome,
             match: won ? 'W' : 'L',
             gain: this.vp1.gain,
-            total: this.vp1.total,
-            max: this.vp1.max
+            total,
+            max: this.max,
+            resetLevels
         })
-        // console.debug(JSON.stringify(this.data))
         this.runManualPlayer()
         this.displayChartAndTable()
         this.viewPageFor(this.round, 0)
+        this.round = this.round + 1
     }
 
     runPairSimulation = () => {
@@ -212,9 +233,11 @@ class App extends Component {
             this.vp1.placeBets()
             const outcome = randomOutcome()
             const rows = this.vp1.computeRows(outcome)
-            this.vp1.evolve(outcome)
-            // console.debug(JSON.stringify(rows))
-            return rows.map(row => ({...row, round}))
+            const total = this.vp1.total
+            const resetLevels = this.max > 0 && total > this.max && this.vp1.hasLevelToReset()
+            this.vp1.evolve(outcome, resetLevels)
+            this.max = Math.max(this.max, total)
+            return rows.map(row => ({...row, round, max: this.max, resetLevels}))
         })
         this.displayChartAndTable(rounds)
         this.viewPageFor(0, 0, 'resetPage')
@@ -224,7 +247,9 @@ class App extends Component {
         const maxSampleRate = 1000
         const sampleRate = Math.max(1, Math.floor(rounds / maxSampleRate))
         const chartData = this.data.filter(row => row.round % sampleRate === 0)
-        this.setState({ chartData });
+        // console.debug(JSON.stringify(this.data))
+        const pageCount =  Math.ceil(this.data.length / this.pageSize)
+        this.setState({ chartData, pageCount });
     }
 
     render() {
@@ -233,24 +258,30 @@ class App extends Component {
             pairs,
             rounds,
             chartData,
-            tableData,
+            pageData,
             currentPair,
             currentRow,
+            currentPage,
+            pageCount,
             mode
         } = this.state
-
+        const up = <button onClick={() => this.scroll(-1)} disabled={currentPage === 1}>▲</button>
+        const down = <button onClick={() => this.scroll(1)} disabled={currentPage >= pageCount }>▼</button>
         const controls = {
             simulatePairs:
                 <div style={{ width: 700 }}>
+                    {up}
                     <label>
                         <select value={currentPair}
                             onChange={e => this.viewPageFor(this.state.currentRow, parseInt(e.target.value, 10))}>
                             {[...Array(this.state.pairs).keys()].map(p => <option key={p} value={p}>Pair {p + 1}</option>)}
                         </select>
                     </label>
+                    {down}
                 </div>,
             manual:
                 <div style={{ width: 700, textAlign: 'left' }}>
+                    {up}
                     <label>
                         <strong>Bet:</strong>
                         <input value={this.vp1.betAmount()} style={{ width: 50 }} readOnly />
@@ -260,10 +291,16 @@ class App extends Component {
                     <button onClick={() => this.nextBet(false)}>
                         Lost ({ this.round - this.won })</button>
                     <label><strong>Total: {this.vp1 ? this.vp1.total : 0}</strong></label>
+                    {down}
                 </div>,
-            simRPRand: <div style={{ width: 700 }} />,
-            simRP1010: <div style={{ width: 700 }} />,
-            simRP1100: <div style={{ width: 700 }} />
+            simRPRand: <div style={{ width: 700 }}>{up}<span style={{ width: 500 }}>&nbsp;</span>{down}</div>,
+            simRP1010: <div style={{ width: 700 }}>{up}<span style={{ width: 500 }}>&nbsp;</span>{down}</div>,
+            simRP1100: <div style={{ width: 700 }}>{up}<span style={{ width: 500 }}>&nbsp;</span>{down}</div>
+        }
+        const rowBackground = rowInfo => {
+            if (rowInfo && rowInfo.row.round === currentRow) return '#ccc'
+            if (rowInfo && rowInfo.row._original.resetLevels) return '#e00'
+            return ''
         }
         return (
             <div className="app">
@@ -324,13 +361,13 @@ class App extends Component {
                             isAnimationActive={false} />
                     </AreaChart>
                     <ReactTable
-                        data={tableData}
+                        data={pageData}
                         columns={this.columnsForMode(this.state.mode)}
                         showPagination={false}
                         className="table -highlight"
                         getTrProps={(state, rowInfo) => ({
                             style: {
-                                background: rowInfo && rowInfo.row.round === currentRow ? '#ccc' : ''
+                                background: rowBackground(rowInfo)
                             }
                         })}
                     />

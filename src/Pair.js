@@ -32,7 +32,7 @@ export default class Pair {
             slot: formatProperty('slot'),
             bet: formatProperty('bet'),
             match: this.players[0].won ? 'W:L' : 'L:W',
-            gain: this.players.map(p => formatGain(p.gain)).join(''),
+            pairGain: this.players.map(p => formatGain(p.gain)).join(''),
             outcome,
         }
     }
