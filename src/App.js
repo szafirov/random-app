@@ -71,18 +71,9 @@ class App extends Component {
                         column('Total', 'total', 60),
                         column('Max', 'max', 60)
                     ]
-                case 'manual':
-                    return [
-                        column('Round', 'round', 60),
-                        column('Bet', 'bet'),
-                        column('Out', 'outcome'),
-                        column('Slot', 'slot'),
-                        matchCol,
-                        column('Gain', 'gain'),
-                        column('Total', 'total', 60),
-                        column('Max', 'max', 60)
-                    ]
-                default:
+                case 'sim2RPRand':
+                case 'sim2RP1010':
+                case 'sim2RP1100':
                     return [
                         column('Round', 'round', 60),
                         column('BRP1', 'bet1', 60),
@@ -96,6 +87,17 @@ class App extends Component {
                         column('Total', 'total', 60),
                         column('Max', 'max', 60)
                     ]
+                default:
+                    return [
+                        column('Round', 'round', 60),
+                        column('Bet', 'bet'),
+                        column('Slot', 'slot'),
+                        column('Out', 'outcome'),
+                        matchCol,
+                        column('Gain', 'gain'),
+                        column('Total', 'total', 60),
+                        column('Max', 'max', 60)
+                    ]
             }
         }
         this.pageSize = 20
@@ -103,11 +105,12 @@ class App extends Component {
             const { currentRow, currentPair } = this.state
             this.viewPageFor(currentRow + direction * this.pageSize, currentPair)
         }
-        this.viewPageFor = (row, pair, resetPage) => {
+        this.resetPage = (row = 0, pair = 0) => this.viewPageFor(row, pair, true)
+        this.viewPageFor = (row, pair, resetPage = false) => {
             const { currentPage } = this.state
             const computePage = row => Math.floor(row / this.pageSize) + 1
             const page = computePage(row)
-            // console.debug(row, page, currentPage)
+            // console.debug(row, page, currentPage, resetPage)
             if (currentPage !== page || this.state.currentPair !== pair || resetPage) {
                 const pageData = this.data.filter(row => computePage(row.round) === page && row.pair === pair)
                 this.setState({
@@ -140,7 +143,7 @@ class App extends Component {
 
     resetView() {
         this.setState({ chartData: [], pageCount: 0 });
-        this.viewPageFor(0, 0, 'resetPage')
+        this.resetPage()
     }
 
     start = () => {
@@ -152,11 +155,43 @@ class App extends Component {
             case 'simRPRand': this.runRealPlayerSimulation(genRandom()); break
             case 'simRP1010': this.runRealPlayerSimulation(gen1010()); break
             case 'simRP1100': this.runRealPlayerSimulation(gen1100()); break
+            case 'sim2RPRand': this.runTwoRealPlayersSimulation(genRandom()); break
+            case 'sim2RP1010': this.runTwoRealPlayersSimulation(gen1010()); break
+            case 'sim2RP1100': this.runTwoRealPlayersSimulation(gen1100()); break
             default: console.error(this.state.mode); break
         }
     }
 
     runRealPlayerSimulation = (slotGenerator) => {
+        const { rounds } = this.state
+        this.data = [...Array(rounds).keys()].flatMap(round => {
+            const bet = this.vp1.placeBets()
+            const slot = slotGenerator()
+            const outcome = randomOutcome()
+            const won = slot === outcome
+            this.vp1.computeGain(outcome, won)
+            const total = this.vp1.total
+            const resetLevels = this.max > 0 && total > this.max && this.vp1.hasLevelToReset()
+            this.vp1.evolve(outcome, resetLevels)
+            this.max = Math.max(this.max, total)
+            return {
+                round,
+                pair: 0,
+                bet,
+                slot,
+                outcome,
+                match: won ? 'W' : 'L',
+                gain: this.vp1.gain,
+                total,
+                max: this.max,
+                resetLevels
+            }
+        })
+        this.displayChartAndTable(rounds)
+        this.resetPage()
+    }
+
+    runTwoRealPlayersSimulation = (slotGenerator) => {
         const { rounds } = this.state
         this.data = [...Array(rounds).keys()].flatMap(round => {
             const bet1 = this.vp1.placeBets()
@@ -190,10 +225,9 @@ class App extends Component {
                 max: this.max,
                 resetLevels
             }
-
         })
         this.displayChartAndTable(rounds)
-        this.viewPageFor(0, 0, 'resetPage')
+        this.resetPage()
     }
 
     runManualPlayer = () => {
@@ -209,6 +243,7 @@ class App extends Component {
         const resetLevels = this.max > 0 && total > this.max && this.vp1.hasLevelToReset()
         this.vp1.evolve(outcome, resetLevels)
         this.max = Math.max(this.max, total)
+        // console.debug(this.data)
         this.data = this.data.concat({
             round: this.round,
             pair: 0,
@@ -223,7 +258,7 @@ class App extends Component {
         })
         this.runManualPlayer()
         this.displayChartAndTable()
-        this.viewPageFor(this.round, 0)
+        this.resetPage(this.round)
         this.round = this.round + 1
     }
 
@@ -240,7 +275,7 @@ class App extends Component {
             return rows.map(row => ({...row, round, max: this.max, resetLevels}))
         })
         this.displayChartAndTable(rounds)
-        this.viewPageFor(0, 0, 'resetPage')
+        this.resetPage(0, 0)
     }
 
     displayChartAndTable = (rounds = 1000) => {
@@ -248,8 +283,9 @@ class App extends Component {
         const sampleRate = Math.max(1, Math.floor(rounds / maxSampleRate))
         const chartData = this.data.filter(row => row.round % sampleRate === 0)
         // console.debug(JSON.stringify(this.data))
-        const pageCount =  Math.ceil(this.data.length / this.pageSize)
+        const pageCount =  Math.ceil(this.data.filter(row => row.pair === this.state.currentPair).length / this.pageSize)
         this.setState({ chartData, pageCount });
+        // console.debug(JSON.stringify(this.state))
     }
 
     render() {

@@ -1,14 +1,27 @@
-const coefficients = [1, 1, 1, 2, 2, 4, 6, 10, 16, 26]
+// const coefficients = [1, 1, 1, 2, 2, 4, 6, 10, 16, 26]
+const coefficients = [1, 1, 1, 2, 2, 3, 4, 7, 11, 18]
+
+// const hasStarIndex = (index) => index < 5 && index !== 3
+const hasStarIndex = (index) => index <= 6
 
 const increment = (won, index, star) => {
     if (won) {
-        if (index < 5 && index !== 3) {
-            return star ? 0 : index
+        if (hasStarIndex(index)) {
+            if (star) {
+                return {
+                    index: 0
+                }
+            } else {
+                return {
+                    index,
+                    star: true
+                }
+            }
         } else {
-            return index - 3
+            return { index: index - 3 }
         }
     } else {
-        return index + 1
+        return { index: index + 1 }
     }
 }
 
@@ -35,9 +48,9 @@ export default class Player {
     }
 
     evolve() {
-        const nextStar = this.won && this.index < 5 && this.index !== 3 && !this.star
-        this.index = increment(this.won, this.index, this.star)
-        this.star = nextStar
+        const { index, star } = increment(this.won, this.index, this.star)
+        this.index = index
+        this.star = star
         if (this.index === 10) {
             this.level += 1
             this.index = 0
