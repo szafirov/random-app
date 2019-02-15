@@ -1,5 +1,7 @@
 import Pair from './Pair.js';
 
+const sum = (a, b) => a + b
+
 export default class VirtualPlayer {
     constructor(pairs, defense) {
         this.pairs = [...Array(pairs).keys()].map(index => new Pair(index, defense))
@@ -12,7 +14,7 @@ export default class VirtualPlayer {
     }
     computeRows(outcome) {
         const rows = this.pairs.map(pair => pair.computeGain(outcome))
-        this.gain = this.pairs.map(pair => pair.gain).reduce((a, b) => a + b)
+        this.gain = this.pairs.map(pair => pair.gain).reduce(sum)
         this.total += this.gain
         return rows.map((row, pair) => ({
             ...row,
@@ -25,21 +27,22 @@ export default class VirtualPlayer {
         this.pairs.map(pair => pair.computeGain(outcome))
         this.gain = (won ? 1 : -1) * this.betAmount()
         this.total += this.gain
+        return this.total
     }
-    evolve(outcome, resetLevels) {
-        this.pairs.forEach(pair => pair.evolve(outcome))
-        if (resetLevels) this.pairs
-            .filter(pair => pair.players[0].level > 0)
-            .forEach(pair => pair.resetLevel())
+    evolve(resetLevels) {
+        this.pairs.filter(pair => {
+            if (resetLevels && pair.canReset()) pair.reset()
+            else pair.evolve()
+        })
     }
-    hasLevelToReset() {
-        return this.pairs.filter(pair => pair.players[0].level > 0).length
+    hasPairsToReset() {
+        return this.pairs.filter(pair => pair.canReset()).length > 0
     }
     betAmount = () => {
         const betSum = slot => this.pairs
             .map(pair => pair.playerBySlot(slot))
             .map(player => player.bet)
-            .reduce((a, b) => a + b)
+            .reduce(sum)
         return Math.abs(betSum(0) - betSum(1))
     }
 }

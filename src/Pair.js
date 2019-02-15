@@ -37,13 +37,19 @@ export default class Pair {
         }
     }
 
-    evolve(outcome) {
-        this.players.forEach(p => p.evolve(outcome))
+    evolve() {
+        this.resetLevels = false
+        this.players.forEach(p => p.evolve())
         this.level = Math.max(this.players[0].level, this.players[1].level)
         this.players.forEach(p => p.level = this.level)
     }
 
-    resetLevel() {
-        this.players.forEach(p => p.resetLevel())
+    canReset() {
+        return this.level > 0 || this.players.filter(p => p.index > 5).length > 0
+    }
+
+    reset() {
+        this.resetLevels = true
+        this.players.forEach(p => p.reset())
     }
 }

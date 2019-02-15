@@ -54,9 +54,8 @@ export default class Player {
         }
     }
 
-    resetLevel() {
-        this.level = 0
-        this.index = 0
+    reset() {
+        this.level = this.index = 0
         this.star = false
     }
 }

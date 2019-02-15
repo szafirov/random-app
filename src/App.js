@@ -41,7 +41,7 @@ class App extends Component {
             chartData: [],
             pageData: [],
             mode: 'simRPRand',
-            currentRow: 0,
+            currentRound: 0,
             currentPair: 0,
             currentPage: 1,
             pageCount: 0,
@@ -102,23 +102,25 @@ class App extends Component {
         }
         this.pageSize = 20
         this.scroll = (direction) => {
-            const { currentRow, currentPair } = this.state
-            this.viewPageFor(currentRow + direction * this.pageSize, currentPair)
+            const { currentRound, currentPair } = this.state
+            this.viewPageFor(currentRound + direction * this.pageSize, currentPair)
         }
-        this.resetPage = (row = 0, pair = 0) => this.viewPageFor(row, pair, true)
-        this.viewPageFor = (row, pair, resetPage = false) => {
-            const { currentPage } = this.state
-            const computePage = row => Math.floor(row / this.pageSize) + 1
-            const page = computePage(row)
+        this.resetPage = (round = 0, pair = 0) => this.viewPageFor(round, pair, true)
+        this.viewPageFor = (round, pair, resetPage = false) => {
+            const { currentPage, currentRound } = this.state
+            const computePage = round => Math.floor(round / this.pageSize) + 1
+            const page = computePage(round)
             // console.debug(row, page, currentPage, resetPage)
             if (currentPage !== page || this.state.currentPair !== pair || resetPage) {
                 const pageData = this.data.filter(row => computePage(row.round) === page && row.pair === pair)
                 this.setState({
-                    currentRow: row,
+                    currentRound: round,
                     currentPage: page,
                     currentPair: pair,
                     pageData,
                 })
+            } else if (round !== currentRound) {
+                this.setState({ currentRound: round })
             }
         }
         this.resetData()
@@ -169,11 +171,8 @@ class App extends Component {
             const slot = slotGenerator()
             const outcome = randomOutcome()
             const won = slot === outcome
-            this.vp1.computeGain(outcome, won)
-            const total = this.vp1.total
-            const resetLevels = this.max > 0 && total > this.max && this.vp1.hasLevelToReset()
-            this.vp1.evolve(outcome, resetLevels)
-            this.max = Math.max(this.max, total)
+            const total = this.vp1.computeGain(outcome, won)
+            const resetLevels = this.evolve(total);
             return {
                 round,
                 pair: 0,
@@ -202,13 +201,12 @@ class App extends Component {
             const won = slot === outcome
             const won1 = won === (bet1 >= bet2)
             const won2 = won === (bet1 < bet2)
-            this.vp1.computeGain(outcome, won1)
-            this.vp2.computeGain(outcome, won2)
-            const total = this.vp1.total + this.vp2.total
-            const resetLevels = this.max > 0 && total > this.max &&
-                (this.vp1.hasLevelToReset() || this.vp2.hasLevelToReset())
-            this.vp1.evolve(outcome, resetLevels)
-            this.vp2.evolve(outcome, resetLevels)
+            const total1 = this.vp1.computeGain(outcome, won1)
+            const total2 = this.vp2.computeGain(outcome, won2)
+            const total = total1 + total2
+            const resetLevels = this.shouldResetLevels() && (this.vp1.hasPairsToReset() || this.vp2.hasPairsToReset())
+            this.vp1.evolve(resetLevels)
+            this.vp2.evolve(resetLevels)
             this.max = Math.max(this.max, total)
             return {
                 round,
@@ -219,8 +217,8 @@ class App extends Component {
                 slot,
                 outcome,
                 match: won ? 'W' : 'L',
-                total1: this.vp1.total,
-                total2: this.vp2.total,
+                total1,
+                total2,
                 total,
                 max: this.max,
                 resetLevels
@@ -238,11 +236,8 @@ class App extends Component {
         if (won) this.won = this.won + 1
         const outcome = randomOutcome()
         const slot = won ? outcome : 1 - outcome
-        this.vp1.computeGain(outcome, won)
-        const total = this.vp1.total
-        const resetLevels = this.max > 0 && total > this.max && this.vp1.hasLevelToReset()
-        this.vp1.evolve(outcome, resetLevels)
-        this.max = Math.max(this.max, total)
+        const total = this.vp1.computeGain(outcome, won)
+        const resetLevels = this.evolve(total);
         // console.debug(this.data)
         this.data = this.data.concat({
             round: this.round,
@@ -268,15 +263,27 @@ class App extends Component {
             this.vp1.placeBets()
             const outcome = randomOutcome()
             const rows = this.vp1.computeRows(outcome)
-            const total = this.vp1.total
-            const resetLevels = this.max > 0 && total > this.max && this.vp1.hasLevelToReset()
-            this.vp1.evolve(outcome, resetLevels)
-            this.max = Math.max(this.max, total)
-            return rows.map(row => ({...row, round, max: this.max, resetLevels}))
+            this.evolve(this.vp1.total);
+            return rows.map(row => ({
+                ...row,
+                round,
+                max: this.max,
+                resetLevels: this.vp1.pairs[row.pair].resetLevels
+            }))
         })
+        console.debug(this.data)
         this.displayChartAndTable(rounds)
         this.resetPage(0, 0)
     }
+
+    evolve(total) {
+        const resetLevels = this.shouldResetLevels(total) && this.vp1.hasPairsToReset()
+        this.vp1.evolve(resetLevels)
+        this.max = Math.max(this.max, total)
+        return resetLevels;
+    }
+
+    shouldResetLevels = (total) => this.max > 0 && total > this.max
 
     displayChartAndTable = (rounds = 1000) => {
         const maxSampleRate = 1000
@@ -296,7 +303,7 @@ class App extends Component {
             chartData,
             pageData,
             currentPair,
-            currentRow,
+            currentRound,
             currentPage,
             pageCount,
             mode
@@ -309,7 +316,7 @@ class App extends Component {
                     {up}
                     <label>
                         <select value={currentPair}
-                            onChange={e => this.viewPageFor(this.state.currentRow, parseInt(e.target.value, 10))}>
+                            onChange={e => this.viewPageFor(this.state.currentRound, parseInt(e.target.value, 10))}>
                             {[...Array(this.state.pairs).keys()].map(p => <option key={p} value={p}>Pair {p + 1}</option>)}
                         </select>
                     </label>
@@ -334,7 +341,7 @@ class App extends Component {
             simRP1100: <div style={{ width: 700 }}>{up}<span style={{ width: 500 }}>&nbsp;</span>{down}</div>
         }
         const rowBackground = rowInfo => {
-            if (rowInfo && rowInfo.row.round === currentRow) return '#ccc'
+            if (rowInfo && rowInfo.row.round === currentRound) return '#ccc'
             if (rowInfo && rowInfo.row._original.resetLevels) return '#e00'
             return ''
         }
@@ -347,7 +354,7 @@ class App extends Component {
                                 onChange={e => this.setState({ defense: parseInt(e.target.value, 10) })} />
                         </label>
                         <label>
-                            Pairs: <input type="number" min="1" max="10" value={pairs} style={{ width: 30 }}
+                            Pairs: <input type="number" min="1" max="30" value={pairs} style={{ width: 30 }}
                                 onChange={e => this.setState({ pairs: parseInt(e.target.value, 10) })} />
                         </label>
                         <label>
