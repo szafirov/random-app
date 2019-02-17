@@ -35,7 +35,7 @@ export default class Player {
 
     placeBet(slot) {
         this.slot = slot
-        const levelMultiplier = this.star ? 2 : coefficients[this.index]
+        const levelMultiplier = (this.star ? 2 : 1) * coefficients[this.index]
         this.bet = levelMultiplier * this.defense ** this.level
     }
 

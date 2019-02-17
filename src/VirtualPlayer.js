@@ -30,7 +30,7 @@ export default class VirtualPlayer {
         return this.total
     }
     evolve(resetLevels) {
-        this.pairs.filter(pair => {
+        this.pairs.forEach(pair => {
             if (resetLevels && pair.canReset()) pair.reset()
             else pair.evolve()
         })
