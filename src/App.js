@@ -374,7 +374,7 @@ class App extends Component {
                         <button onClick={this.start}>Start</button>
                     </div>
                     {controls[mode]}
-                    <div style={{ fontSize: 'x-small', border: '1px solid red' }}>Updated: Feb 15, 01h39</div>
+                    <div style={{ fontSize: 'x-small', border: '1px solid red' }}>Updated: Feb 17, 01h35</div>
                 </div>
                 <div className="container">
                     <AreaChart width={700}
