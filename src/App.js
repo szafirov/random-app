@@ -46,6 +46,7 @@ class App extends Component {
             currentPage: 1,
             pageCount: 0,
         }
+        this.slots = []
         const matchCol = {
             ...column('Match', 'match', 60),
             Cell: row => (
@@ -101,17 +102,22 @@ class App extends Component {
             }
         }
         this.pageSize = 20
+
         this.scroll = (direction) => {
             const { currentRound, currentPair } = this.state
             this.viewPageFor(currentRound + direction * this.pageSize, currentPair)
         }
-        this.resetPage = (round = 0, pair = 0) => this.viewPageFor(round, pair, true)
-        this.viewPageFor = (round, pair, resetPage = false) => {
+
+        this.reloadPage = (round = Math.min(this.state.rounds - 1, this.state.currentRound),
+                          pair = Math.min(this.state.pairs - 1, this.state.currentPair)) =>
+            this.viewPageFor(round, pair, true)
+
+        this.viewPageFor = (round, pair, forceReset = false) => {
             const { currentPage, currentRound } = this.state
             const computePage = round => Math.floor(round / this.pageSize) + 1
             const page = computePage(round)
-            // console.debug(row, page, currentPage, resetPage)
-            if (currentPage !== page || this.state.currentPair !== pair || resetPage) {
+            // console.debug(round, page, currentPage, forceReset)
+            if (currentPage !== page || this.state.currentPair !== pair || forceReset) {
                 const pageData = this.data.filter(row => computePage(row.round) === page && row.pair === pair)
                 this.setState({
                     currentRound: round,
@@ -127,9 +133,9 @@ class App extends Component {
     }
 
     changeMode = (mode) => {
-        this.setState({ mode })
+        this.setState({ mode, pageCount: 0 })
         this.resetData()
-        this.resetView()
+        this.viewPageFor(0, 0, true)
     }
 
     resetData = () => {
@@ -141,16 +147,12 @@ class App extends Component {
         const { defense, pairs } = this.state
         this.vp1 = new VirtualPlayer(pairs, defense)
         this.vp2 = new VirtualPlayer(pairs, defense)
-    }
-
-    resetView() {
-        this.setState({ chartData: [], pageCount: 0 });
-        this.resetPage()
+        this.setState({ chartData: [] });
     }
 
     start = () => {
         this.resetData()
-        this.resetView()
+        this.reloadPage()
         switch (this.state.mode) {
             case 'simulatePairs': this.runPairSimulation(); break
             case 'manual': this.runManualPlayer(); break
@@ -165,14 +167,15 @@ class App extends Component {
     }
 
     runRealPlayerSimulation = (slotGenerator) => {
-        const { rounds } = this.state
+        const { rounds, locked } = this.state
         this.data = [...Array(rounds).keys()].flatMap(round => {
-            const bet = this.vp1.placeBets()
+            const bet = this.vp1.placeBets(locked && this.slots[round])
             const slot = slotGenerator()
             const outcome = randomOutcome()
             const won = slot === outcome
-            const total = this.vp1.computeGain(outcome, won)
-            const resetLevels = this.evolve(total);
+            const rows = this.vp1.computeGain(outcome, won)
+            const resetLevels = this.evolve(this.vp1.total)
+            this.slots[round] = rows.map(({ slots }) => slots)
             return {
                 round,
                 pair: 0,
@@ -181,29 +184,29 @@ class App extends Component {
                 outcome,
                 match: won ? 'W' : 'L',
                 gain: this.vp1.gain,
-                total,
+                total: this.vp1.total,
                 max: this.max,
                 resetLevels
             }
         })
         this.displayChartAndTable(rounds)
-        this.resetPage()
+        this.reloadPage()
     }
 
     runTwoRealPlayersSimulation = (slotGenerator) => {
-        const { rounds } = this.state
+        const { rounds, locked } = this.state
         this.data = [...Array(rounds).keys()].flatMap(round => {
-            const bet1 = this.vp1.placeBets()
-            const bet2 = this.vp2.placeBets()
+            const bet1 = this.vp1.placeBets(locked && this.slots[round])
+            const bet2 = this.vp2.placeBets(locked && this.slots[round])
             const bet = Math.abs(bet1 - bet2)
             const slot = slotGenerator()
             const outcome = randomOutcome()
             const won = slot === outcome
             const won1 = won === (bet1 >= bet2)
             const won2 = won === (bet1 < bet2)
-            const total1 = this.vp1.computeGain(outcome, won1)
-            const total2 = this.vp2.computeGain(outcome, won2)
-            const total = total1 + total2
+            this.vp1.computeGain(outcome, won1)
+            this.vp2.computeGain(outcome, won2)
+            const total = this.vp1.total + this.vp1.total2
             const resetLevels = this.shouldResetLevels() && (this.vp1.hasPairsToReset() || this.vp2.hasPairsToReset())
             this.vp1.evolve(resetLevels)
             this.vp2.evolve(resetLevels)
@@ -217,27 +220,28 @@ class App extends Component {
                 slot,
                 outcome,
                 match: won ? 'W' : 'L',
-                total1,
-                total2,
+                total1: this.vp1.total,
+                total2: this.vp2.total,
                 total,
                 max: this.max,
                 resetLevels
             }
         })
         this.displayChartAndTable(rounds)
-        this.resetPage()
+        this.reloadPage()
     }
 
     runManualPlayer = () => {
-        this.vp1.placeBets()
+        this.vp1.placeBets(this.state.locked && this.slots[this.round])
     }
 
     nextBet = (won) => {
         if (won) this.won = this.won + 1
         const outcome = randomOutcome()
         const slot = won ? outcome : 1 - outcome
-        const total = this.vp1.computeGain(outcome, won)
-        const resetLevels = this.evolve(total);
+        const rows = this.vp1.computeGain(outcome, won)
+        const resetLevels = this.evolve(this.vp1.total)
+        this.slots[this.round] = rows.map(({ slots }) => slots)
         // console.debug(this.data)
         this.data = this.data.concat({
             round: this.round,
@@ -247,23 +251,24 @@ class App extends Component {
             outcome,
             match: won ? 'W' : 'L',
             gain: this.vp1.gain,
-            total,
+            total: this.vp1.total,
             max: this.max,
             resetLevels
         })
         this.runManualPlayer()
         this.displayChartAndTable()
-        this.resetPage(this.round)
+        this.reloadPage(this.round)
         this.round = this.round + 1
     }
 
     runPairSimulation = () => {
-        const { rounds } = this.state
+        const { rounds, locked } = this.state
         this.data = [...Array(rounds).keys()].flatMap(round => {
-            this.vp1.placeBets()
+            this.vp1.placeBets(locked && this.slots[round])
             const outcome = randomOutcome()
             const rows = this.vp1.computeRows(outcome)
             this.evolve(this.vp1.total);
+            this.slots[round] = rows.map(({ slots }) => slots)
             return rows.map(row => ({
                 ...row,
                 round,
@@ -271,9 +276,9 @@ class App extends Component {
                 resetLevels: this.vp1.pairs[row.pair].resetLevels
             }))
         })
-        console.debug(this.data)
+        // console.debug(this.data)
         this.displayChartAndTable(rounds)
-        this.resetPage(0, 0)
+        this.reloadPage()
     }
 
     evolve(total) {
@@ -342,15 +347,19 @@ class App extends Component {
         }
         const rowBackground = rowInfo => {
             if (rowInfo && rowInfo.row.round === currentRound) return '#ccc'
-            if (rowInfo && rowInfo.row._original.resetLevels) return '#e00'
+            if (rowInfo && rowInfo.row._original.resetLevels) return '#ff2e00'
             return ''
         }
+        const columnBackground = colInfo =>
+            (colInfo && colInfo.id === 'slot' && this.state.locked && this.state.mode === 'simulatePairs')
+                ? '#ccc'
+                : ''
         return (
             <div className="app">
                 <div className="container">
                     <div style={{ width: 700 }}>
                         <label>
-                            Defense: <input type="number" min="2" max="10" value={defense} style={{ width: 30 }}
+                            Def: <input type="number" min="2" max="10" value={defense} style={{ width: 30 }}
                                 onChange={e => this.setState({ defense: parseInt(e.target.value, 10) })} />
                         </label>
                         <label>
@@ -371,10 +380,14 @@ class App extends Component {
                                 <option value="simulatePairs">Sim Pairs</option>
                             </select>
                         </label>
-                        <button onClick={this.start}>Start</button>
+                        <label>
+                            Lock:
+                            <input type="checkbox" onClick={e => this.setState({ locked: e.target.checked })} />
+                        </label>
+                        <button onClick={this.start}>▶</button>
                     </div>
                     {controls[mode]}
-                    <div style={{ fontSize: 'x-small', border: '1px solid red' }}>Updated: Feb 17, 01h35</div>
+                    <div style={{ fontSize: 'x-small', border: '1px solid grey' }}>Feb19 23h</div>
                 </div>
                 <div className="container">
                     <AreaChart width={700}
@@ -412,6 +425,12 @@ class App extends Component {
                         getTrProps={(state, rowInfo) => ({
                             style: {
                                 background: rowBackground(rowInfo)
+                            }
+                        })}
+                        getTdProps={(state, rowInfo, column) => ({
+
+                            style: {
+                                background: columnBackground(column)
                             }
                         })}
                     />

@@ -8,13 +8,22 @@ export default class VirtualPlayer {
         this.gain = 0
         this.total = 0
     }
-    placeBets() {
-        this.pairs.forEach(pair => pair.placeBets())
+    placeBets(slots) {
+        // console.debug(slots)
+        this.pairs.forEach(pair => pair.placeBets(slots && slots[pair.index]))
         return this.betAmount()
     }
     computeRows(outcome) {
-        const rows = this.pairs.map(pair => pair.computeGain(outcome))
+        const rows = this.pairs.map(pair => pair.computeRow(outcome))
         this.gain = this.pairs.map(pair => pair.gain).reduce(sum)
+        return this.addTotal(rows)
+    }
+    computeGain(outcome, won) {
+        const rows = this.pairs.map(pair => pair.computeRow(outcome))
+        this.gain = (won ? 1 : -1) * this.betAmount()
+        return this.addTotal(rows);
+    }
+    addTotal(rows) {
         this.total += this.gain
         return rows.map((row, pair) => ({
             ...row,
@@ -22,12 +31,6 @@ export default class VirtualPlayer {
             gain: this.gain,
             total: this.total,
         }))
-    }
-    computeGain(outcome, won) {
-        this.pairs.map(pair => pair.computeGain(outcome))
-        this.gain = (won ? 1 : -1) * this.betAmount()
-        this.total += this.gain
-        return this.total
     }
     evolve(resetLevels) {
         this.pairs.forEach(pair => {
