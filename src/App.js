@@ -36,7 +36,7 @@ class App extends Component {
             pairs: 10,
             chartData: [],
             pageData: [],
-            mode: 'sim2RPRand',
+            mode: 'simRand',
             currentRound: 0,
             currentPair: 0,
             currentPage: 1,
@@ -68,9 +68,7 @@ class App extends Component {
                         column('Total', 'total', 60),
                         column('Max', 'max', 60)
                     ]
-                case 'sim2RPRand':
-                case 'sim2RP1010':
-                case 'sim2RP1100':
+                default:
                     return [
                         column('Round', 'round', 60),
                         column('BRP1', 'bet1', 60),
@@ -84,17 +82,17 @@ class App extends Component {
                         column('Total', 'total', 60),
                         column('Max', 'max', 60)
                     ]
-                default:
-                    return [
-                        column('Round', 'round', 60),
-                        column('Bet', 'bet'),
-                        column('Slot', 'slot'),
-                        column('Out', 'outcome'),
-                        matchCol,
-                        column('Gain', 'gain'),
-                        column('Total', 'total', 60),
-                        column('Max', 'max', 60)
-                    ]
+                // default:
+                //     return [
+                //         column('Round', 'round', 60),
+                //         column('Bet', 'bet'),
+                //         column('Slot', 'slot'),
+                //         column('Out', 'outcome'),
+                //         matchCol,
+                //         column('Gain', 'gain'),
+                //         column('Total', 'total', 60),
+                //         column('Max', 'max', 60)
+                //     ]
             }
         }
         this.pageSize = 20
@@ -152,11 +150,10 @@ class App extends Component {
         switch (this.state.mode) {
             case 'simulatePairs': this.runPairSimulation(); break
             case 'manual': this.runManualPlayer(); break
-            case 'simRand': this.runRealPlayerSimulation(genRandom()); break
-            case 'sim2RPRand':
-            case 'sim2RP1010':
-            case 'sim2RP1100': this.runTwoRealPlayersSimulation(genRandom()); break
-            default: this.runRealPlayerSimulation(genRepeat(parseInt(this.state.mode, 10))); break
+            // case 'simRand': this.runRealPlayerSimulation(genRandom()); break
+            case 'simRand': this.runTwoRealPlayersSimulation(genRandom()); break
+            default: this.runTwoRealPlayersSimulation(genRepeat(parseInt(this.state.mode, 10))); break
+            // default: this.runRealPlayerSimulation(genRepeat(parseInt(this.state.mode, 10))); break
         }
     }
 
@@ -368,11 +365,10 @@ class App extends Component {
                         <label>
                             Mode:
                             <select value={mode} onChange={e => this.changeMode(e.target.value)} style={{ width: 130 }}>
-                                <option value="sim2RPRand">Sim 2RP</option>
                                 <option value="simRand">Sim Rand</option>
                                 {[...Array(5).keys()].map(p => p + 1)
                                     .map(p => <option key={p} value={p}>Sim 1x{p},0x{p}</option>)}
-                                <option value="manual">Manual</option>
+                                {/*<option value="manual">Manual</option>*/}
                                 <option value="simulatePairs">Sim Pairs</option>
                             </select>
                         </label>
@@ -383,7 +379,7 @@ class App extends Component {
                         <button onClick={this.start}>▶</button>
                     </div>
                     {controls[mode] || controls['simRand']}
-                    <div style={{ fontSize: 'x-small', border: '1px solid grey' }}>Mar08 8h00</div>
+                    <div style={{ fontSize: 'x-small', border: '1px solid grey' }}>Mar08 18h00</div>
                 </div>
                 <div className="container">
                     <AreaChart width={700}
