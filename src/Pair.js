@@ -47,7 +47,7 @@ export default class Pair {
     }
 
     canReset() {
-        return this.level > 0 || this.players.filter(p => p.index > 5).length > 0
+        return this.level > 0 || this.players.filter(p => p.index > 2).length > 0
     }
 
     reset() {

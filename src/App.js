@@ -13,13 +13,9 @@ const slotEngine = new Random(Random.engines.mt19937().autoSeed())
 const randomOutcome = () => outcomeEngine.bool() ? 1 : 0
 const randomSlot = () => slotEngine.bool() ? 1 : 0
 const genRandom = () => () => randomSlot()
-const gen1010 = () => {
+const genRepeat = (count) => {
     let i = 0;
-    return () => i++ % 2 === 0 ? 1 : 0
-}
-const gen1100 = () => {
-    let i = 0;
-    return () => i++ % 4 < 2 ? 1 : 0
+    return () => i++ % (2 * count) < count ? 1 : 0
 }
 const column = (Header, accessor, width = 50) => ({ Header, accessor, width, sortable: false })
 
@@ -40,7 +36,7 @@ class App extends Component {
             pairs: 10,
             chartData: [],
             pageData: [],
-            mode: 'simRPRand',
+            mode: 'sim2RPRand',
             currentRound: 0,
             currentPair: 0,
             currentPage: 1,
@@ -156,13 +152,11 @@ class App extends Component {
         switch (this.state.mode) {
             case 'simulatePairs': this.runPairSimulation(); break
             case 'manual': this.runManualPlayer(); break
-            case 'simRPRand': this.runRealPlayerSimulation(genRandom()); break
-            case 'simRP1010': this.runRealPlayerSimulation(gen1010()); break
-            case 'simRP1100': this.runRealPlayerSimulation(gen1100()); break
-            case 'sim2RPRand': this.runTwoRealPlayersSimulation(genRandom()); break
-            case 'sim2RP1010': this.runTwoRealPlayersSimulation(gen1010()); break
-            case 'sim2RP1100': this.runTwoRealPlayersSimulation(gen1100()); break
-            default: console.error(this.state.mode); break
+            case 'simRand': this.runRealPlayerSimulation(genRandom()); break
+            case 'sim2RPRand':
+            case 'sim2RP1010':
+            case 'sim2RP1100': this.runTwoRealPlayersSimulation(genRandom()); break
+            default: this.runRealPlayerSimulation(genRepeat(parseInt(this.state.mode, 10))); break
         }
     }
 
@@ -173,8 +167,9 @@ class App extends Component {
             const slot = slotGenerator()
             const outcome = randomOutcome()
             const won = slot === outcome
+            const oldTotal = this.vp1.total
             const rows = this.vp1.computeGain(outcome, won)
-            const resetLevels = this.evolve(this.vp1.total)
+            const resetLevels = this.evolve(oldTotal, this.vp1.total)
             this.slots[round] = rows.map(({ slots }) => slots)
             return {
                 round,
@@ -204,13 +199,14 @@ class App extends Component {
             const won = slot === outcome
             const won1 = won === (bet1 >= bet2)
             const won2 = won === (bet1 < bet2)
+            const oldTotal = this.vp1.total + this.vp2.total
             this.vp1.computeGain(outcome, won1)
             this.vp2.computeGain(outcome, won2)
-            const total = this.vp1.total + this.vp1.total2
-            const resetLevels = this.shouldResetLevels() && (this.vp1.hasPairsToReset() || this.vp2.hasPairsToReset())
+            const newTotal = this.vp1.total + this.vp2.total
+            const resetLevels = this.shouldResetLevels(oldTotal, newTotal) && (this.vp1.hasPairsToReset() || this.vp2.hasPairsToReset())
             this.vp1.evolve(resetLevels)
             this.vp2.evolve(resetLevels)
-            this.max = Math.max(this.max, total)
+            this.max = Math.max(this.max, newTotal)
             return {
                 round,
                 pair: 0,
@@ -222,7 +218,7 @@ class App extends Component {
                 match: won ? 'W' : 'L',
                 total1: this.vp1.total,
                 total2: this.vp2.total,
-                total,
+                total: newTotal,
                 max: this.max,
                 resetLevels
             }
@@ -239,8 +235,9 @@ class App extends Component {
         if (won) this.won = this.won + 1
         const outcome = randomOutcome()
         const slot = won ? outcome : 1 - outcome
+        const oldTotal = this.vp1.total
         const rows = this.vp1.computeGain(outcome, won)
-        const resetLevels = this.evolve(this.vp1.total)
+        const resetLevels = this.evolve(oldTotal, this.vp1.total)
         this.slots[this.round] = rows.map(({ slots }) => slots)
         // console.debug(this.data)
         this.data = this.data.concat({
@@ -266,8 +263,9 @@ class App extends Component {
         this.data = [...Array(rounds).keys()].flatMap(round => {
             this.vp1.placeBets(locked && this.slots[round])
             const outcome = randomOutcome()
+            const oldTotal = this.vp1.total
             const rows = this.vp1.computeRows(outcome)
-            this.evolve(this.vp1.total);
+            this.evolve(oldTotal, this.vp1.total);
             this.slots[round] = rows.map(({ slots }) => slots)
             return rows.map(row => ({
                 ...row,
@@ -281,15 +279,14 @@ class App extends Component {
         this.reloadPage()
     }
 
-    evolve(total) {
-        const resetLevels = this.shouldResetLevels(total) && this.vp1.hasPairsToReset()
+    evolve(oldTotal, newTotal) {
+        const resetLevels = this.shouldResetLevels(oldTotal, newTotal) && this.vp1.hasPairsToReset()
         this.vp1.evolve(resetLevels)
-        this.max = Math.max(this.max, total)
+        this.max = Math.max(this.max, newTotal)
         return resetLevels;
     }
 
-    shouldResetLevels = (total) => this.max > 0 && total > this.max
-
+    shouldResetLevels = (oldTotal, newTotal) => (newTotal > this.max && this.max > 0) || (oldTotal < 0 && newTotal >= 0)
     displayChartAndTable = (rounds = 1000) => {
         const maxSampleRate = 1000
         const sampleRate = Math.max(1, Math.floor(rounds / maxSampleRate))
@@ -341,9 +338,7 @@ class App extends Component {
                     <label><strong>Total: {this.vp1 ? this.vp1.total : 0}</strong></label>
                     {down}
                 </div>,
-            simRPRand: <div style={{ width: 700 }}>{up}<span style={{ width: 500 }}>&nbsp;</span>{down}</div>,
-            simRP1010: <div style={{ width: 700 }}>{up}<span style={{ width: 500 }}>&nbsp;</span>{down}</div>,
-            simRP1100: <div style={{ width: 700 }}>{up}<span style={{ width: 500 }}>&nbsp;</span>{down}</div>
+            simRand: <div style={{ width: 700 }}>{up}<span style={{ width: 500 }}>&nbsp;</span>{down}</div>,
         }
         const rowBackground = rowInfo => {
             if (rowInfo && rowInfo.row.round === currentRound) return '#ccc'
@@ -373,9 +368,10 @@ class App extends Component {
                         <label>
                             Mode:
                             <select value={mode} onChange={e => this.changeMode(e.target.value)} style={{ width: 130 }}>
-                                <option value="simRPRand">Sim Rand</option>
-                                <option value="simRP1010">Sim 1010&hellip;</option>
-                                <option value="simRP1100">Sim 1100&hellip;</option>
+                                <option value="sim2RPRand">Sim 2RP</option>
+                                <option value="simRand">Sim Rand</option>
+                                {[...Array(5).keys()].map(p => p + 1)
+                                    .map(p => <option key={p} value={p}>Sim 1x{p},0x{p}</option>)}
                                 <option value="manual">Manual</option>
                                 <option value="simulatePairs">Sim Pairs</option>
                             </select>
@@ -386,8 +382,8 @@ class App extends Component {
                         </label>
                         <button onClick={this.start}>▶</button>
                     </div>
-                    {controls[mode]}
-                    <div style={{ fontSize: 'x-small', border: '1px solid grey' }}>Feb19 23h</div>
+                    {controls[mode] || controls['simRand']}
+                    <div style={{ fontSize: 'x-small', border: '1px solid grey' }}>Mar08 8h00</div>
                 </div>
                 <div className="container">
                     <AreaChart width={700}
