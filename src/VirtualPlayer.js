@@ -3,14 +3,15 @@ import Pair from './Pair.js';
 const sum = (a, b) => a + b
 
 export default class VirtualPlayer {
-    constructor(pairs, defense) {
-        this.pairs = [...Array(pairs).keys()].map(index => new Pair(index, defense))
+    constructor(pairs, defense, prototype) {
+        this.pairs = [...Array(pairs).keys()].map(index =>
+            new Pair(index, defense, (prototype || { pairs: []}).pairs[index]))
         this.gain = 0
         this.total = 0
+        this.max = 0
     }
-    placeBets(slots) {
-        // console.debug(slots)
-        this.pairs.forEach(pair => pair.placeBets(slots && slots[pair.index]))
+    placeBets(round) {
+        this.pairs.forEach(pair => pair.placeBets(round))
         return this.betAmount()
     }
     computeRows(outcome) {
@@ -48,4 +49,31 @@ export default class VirtualPlayer {
             .reduce(sum)
         return Math.abs(betSum(0) - betSum(1))
     }
+    placeBetsAndComputeRow = (round, outcome, slot) => {
+        const bet = this.placeBets(round)
+        const won = slot === outcome
+        const oldTotal = this.total
+        this.computeGain(outcome, won)
+        const resetLevels = this.resetOrEvolve(oldTotal)
+        return {
+            round,
+            pair: 0,
+            bet,
+            slot,
+            outcome,
+            match: won ? 'W' : 'L',
+            gain: this.gain,
+            total: this.total,
+            max: this.max,
+            resetLevels
+        }
+    }
+    resetOrEvolve = (oldTotal) => {
+        const resetLevels = this.shouldResetLevels(oldTotal, this.total)
+        this.evolve(resetLevels)
+        this.max = Math.max(this.max, this.total)
+        return resetLevels
+    }
+    shouldResetLevels = (oldTotal, newTotal) =>
+        ((newTotal > this.max && this.max > 0) || (oldTotal < 0 && newTotal >= 0)) && this.hasPairsToReset()
 }

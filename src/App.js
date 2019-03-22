@@ -7,6 +7,7 @@ import ReactTable from 'react-table';
 import 'react-table/react-table.css'
 import Random from 'random-js';
 import VirtualPlayer from './VirtualPlayer';
+import VirtualPair from './VirtualPair';
 
 const outcomeEngine = new Random(Random.engines.mt19937().autoSeed())
 const slotEngine = new Random(Random.engines.mt19937().autoSeed())
@@ -36,25 +37,24 @@ class App extends Component {
             pairs: 10,
             chartData: [],
             pageData: [],
-            mode: 'simRand',
+            mode: 'randomRealPlayer',
             currentRound: 0,
             currentPair: 0,
             currentPage: 1,
             pageCount: 0,
         }
-        this.slots = []
         const matchCol = {
             ...column('Match', 'match', 60),
             Cell: row => (
                 <span style={{
-                    color: row.value === 'L' ? '#ff2e00' : '#57d500',
+                    color: {'L': '#ff2e00', 'W': '#57d500', '0': '#aaa'}[row.value],
                     transition: 'all .3s ease'
                 }}>{row.value}</span>
             )
         }
         this.columnsForMode = (mode) => {
             switch (mode) {
-                case 'simulatePairs':
+                case 'randomPairs':
                     return [
                         column('Round', 'round', 60),
                         column('Level', 'level'),
@@ -68,31 +68,32 @@ class App extends Component {
                         column('Total', 'total', 60),
                         column('Max', 'max', 60)
                     ]
-                default:
+                case 'manualVirtualPlayer':
+                case 'randomVirtualPlayer':
                     return [
                         column('Round', 'round', 60),
-                        column('BRP1', 'bet1', 60),
-                        column('BRP2', 'bet2', 60),
                         column('Bet', 'bet'),
                         column('Slot', 'slot'),
                         column('Out', 'outcome'),
                         matchCol,
-                        column('TRP1', 'total1', 60),
-                        column('TRP2', 'total2', 60),
+                        column('Gain', 'gain'),
                         column('Total', 'total', 60),
                         column('Max', 'max', 60)
                     ]
-                // default:
-                //     return [
-                //         column('Round', 'round', 60),
-                //         column('Bet', 'bet'),
-                //         column('Slot', 'slot'),
-                //         column('Out', 'outcome'),
-                //         matchCol,
-                //         column('Gain', 'gain'),
-                //         column('Total', 'total', 60),
-                //         column('Max', 'max', 60)
-                //     ]
+                default:
+                    return [
+                        column('Round', 'round', 60),
+                        column('Bet1', 'bet1', 60),
+                        column('Bet2', 'bet2', 60),
+                        column('Bet', 'bet'),
+                        column('Slot', 'slot'),
+                        column('Out', 'outcome'),
+                        matchCol,
+                        column('Total1', 'total1', 60),
+                        column('Total2', 'total2', 60),
+                        column('Total', 'total', 60),
+                        column('Max', 'max', 60)
+                    ]
             }
         }
         this.pageSize = 20
@@ -137,10 +138,12 @@ class App extends Component {
         this.won = 0
         this.bets = undefined
         this.data = []
+        this.oldTotal = 0
         this.max = 0
-        const { defense, pairs } = this.state
-        this.vp1 = new VirtualPlayer(pairs, defense)
-        this.vp2 = new VirtualPlayer(pairs, defense)
+        const { defense, pairs, locked } = this.state
+        this.virtualPlayer = new VirtualPlayer(pairs, defense, locked ? this.virtualPlayer : undefined)
+        this.vp1 = new VirtualPair(pairs, defense, locked ? this.vp1 : undefined)
+        this.vp2 = new VirtualPair(pairs, defense, locked ? this.vp2 : undefined)
         this.setState({ chartData: [] });
     }
 
@@ -148,127 +151,112 @@ class App extends Component {
         this.resetData()
         this.reloadPage()
         switch (this.state.mode) {
-            case 'simulatePairs': this.runPairSimulation(); break
-            case 'manual': this.runManualPlayer(); break
-            // case 'simRand': this.runRealPlayerSimulation(genRandom()); break
-            case 'simRand': this.runTwoRealPlayersSimulation(genRandom()); break
-            default: this.runTwoRealPlayersSimulation(genRepeat(parseInt(this.state.mode, 10))); break
-            // default: this.runRealPlayerSimulation(genRepeat(parseInt(this.state.mode, 10))); break
+            case 'randomPairs': this.runPairSimulation(); break
+            case 'manualVirtualPlayer': this.runManualVirtualPlayer(); break
+            case 'randomVirtualPlayer': this.runVirtualPlayerSimulation(genRandom()); break
+            case 'randomVirtualPair': this.runVirtualPairSimulation(genRandom()); break
+            case 'randomRealPlayer': this.runRealPlayerSimulation(genRandom()); break
+            default: this.runVirtualPairSimulation(genRepeat(parseInt(this.state.mode, 10))); break
         }
     }
 
+    runVirtualPlayerSimulation = (slotGenerator) => {
+        const { rounds } = this.state
+        this.data = [...Array(rounds).keys()].map(round =>
+            this.virtualPlayer.placeBetsAndComputeRow(round, randomOutcome(), slotGenerator()))
+        this.displayChartAndTable(rounds)
+        this.reloadPage()
+    }
+
+    runVirtualPairSimulation = (slotGenerator) => {
+        const { rounds } = this.state
+        this.data = [...Array(rounds).keys()].map(round =>
+            this.vp1.placeBetsAndComputeRow(round, randomOutcome(), slotGenerator()))
+        this.displayChartAndTable(rounds)
+        this.reloadPage()
+    }
+
     runRealPlayerSimulation = (slotGenerator) => {
-        const { rounds, locked } = this.state
-        this.data = [...Array(rounds).keys()].flatMap(round => {
-            const bet = this.vp1.placeBets(locked && this.slots[round])
-            const slot = slotGenerator()
+        const { rounds } = this.state
+        this.data = [...Array(rounds).keys()].map(round => {
+            const nextSlot = slotGenerator()
             const outcome = randomOutcome()
-            const won = slot === outcome
-            const oldTotal = this.vp1.total
-            const rows = this.vp1.computeGain(outcome, won)
-            const resetLevels = this.evolve(oldTotal, this.vp1.total)
-            this.slots[round] = rows.map(({ slots }) => slots)
+            const row1 = this.vp1.placeBetsAndComputeRow(round, outcome, nextSlot)
+            const total1 = row1.total
+            const bet1 = row1.bet
+            const row2 = this.vp2.placeBetsAndComputeRow(round, outcome, 1 - nextSlot)
+            const total2 = row2.total
+            const bet2 = row2.bet
+            const bet = Math.abs(bet1 - bet2)
+            const total = total1 + total2
+            const won = this.oldTotal < total
+            const lost = this.oldTotal > total
+            const slot = won ? outcome : 1 - outcome
+            this.oldTotal = total
+            this.max = Math.max(this.max, total)
             return {
                 round,
                 pair: 0,
+                bet1,
+                bet2,
                 bet,
                 slot,
                 outcome,
-                match: won ? 'W' : 'L',
-                gain: this.vp1.gain,
-                total: this.vp1.total,
+                match: won ? 'W' : lost ? 'L' : '0',
+                total1,
+                total2,
+                total,
                 max: this.max,
-                resetLevels
             }
+
         })
         this.displayChartAndTable(rounds)
         this.reloadPage()
     }
 
-    runTwoRealPlayersSimulation = (slotGenerator) => {
-        const { rounds, locked } = this.state
-        this.data = [...Array(rounds).keys()].flatMap(round => {
-            const bet1 = this.vp1.placeBets(locked && this.slots[round])
-            const bet2 = this.vp2.placeBets(locked && this.slots[round])
-            const bet = Math.abs(bet1 - bet2)
-            const slot = slotGenerator()
-            const outcome = randomOutcome()
-            const won = slot === outcome
-            const won1 = won === (bet1 >= bet2)
-            const won2 = won === (bet1 < bet2)
-            const oldTotal = this.vp1.total + this.vp2.total
-            this.vp1.computeGain(outcome, won1)
-            this.vp2.computeGain(outcome, won2)
-            const newTotal = this.vp1.total + this.vp2.total
-            const resetLevels = this.shouldResetLevels(oldTotal, newTotal) && (this.vp1.hasPairsToReset() || this.vp2.hasPairsToReset())
-            this.vp1.evolve(resetLevels)
-            this.vp2.evolve(resetLevels)
-            this.max = Math.max(this.max, newTotal)
-            return {
-                round,
-                pair: 0,
-                bet1: bet1,
-                bet2: bet2,
-                bet: bet,
-                slot,
-                outcome,
-                match: won ? 'W' : 'L',
-                total1: this.vp1.total,
-                total2: this.vp2.total,
-                total: newTotal,
-                max: this.max,
-                resetLevels
-            }
-        })
-        this.displayChartAndTable(rounds)
-        this.reloadPage()
+    runManualVirtualPlayer = () => {
+        this.virtualPlayer.placeBets(this.round)
     }
 
-    runManualPlayer = () => {
-        this.vp1.placeBets(this.state.locked && this.slots[this.round])
-    }
-
-    nextBet = (won) => {
+    nextManualBet = (won) => {
         if (won) this.won = this.won + 1
         const outcome = randomOutcome()
         const slot = won ? outcome : 1 - outcome
-        const oldTotal = this.vp1.total
-        const rows = this.vp1.computeGain(outcome, won)
-        const resetLevels = this.evolve(oldTotal, this.vp1.total)
-        this.slots[this.round] = rows.map(({ slots }) => slots)
+        const oldTotal = this.virtualPlayer.total
+        this.virtualPlayer.computeGain(outcome, won)
+        const resetLevels = this.virtualPlayer.resetOrEvolve(oldTotal)
         // console.debug(this.data)
         this.data = this.data.concat({
             round: this.round,
             pair: 0,
-            bet: this.vp1.betAmount(),
+            bet: this.virtualPlayer.betAmount(),
             slot,
             outcome,
             match: won ? 'W' : 'L',
-            gain: this.vp1.gain,
-            total: this.vp1.total,
-            max: this.max,
+            gain: this.virtualPlayer.gain,
+            total: this.virtualPlayer.total,
+            max:  this.virtualPlayer.max,
             resetLevels
         })
-        this.runManualPlayer()
+        this.runManualVirtualPlayer()
         this.displayChartAndTable()
         this.reloadPage(this.round)
         this.round = this.round + 1
     }
 
     runPairSimulation = () => {
-        const { rounds, locked } = this.state
+        const { rounds } = this.state
         this.data = [...Array(rounds).keys()].flatMap(round => {
-            this.vp1.placeBets(locked && this.slots[round])
+            this.virtualPlayer.placeBets(round)
             const outcome = randomOutcome()
-            const oldTotal = this.vp1.total
-            const rows = this.vp1.computeRows(outcome)
-            this.evolve(oldTotal, this.vp1.total);
-            this.slots[round] = rows.map(({ slots }) => slots)
+            const oldTotal = this.virtualPlayer.total
+            const rows = this.virtualPlayer.computeRows(outcome)
+            this.virtualPlayer.resetOrEvolve(oldTotal)
             return rows.map(row => ({
                 ...row,
                 round,
-                max: this.max,
-                resetLevels: this.vp1.pairs[row.pair].resetLevels
+                max:  this.virtualPlayer.max,
+                resetLevels: this.virtualPlayer.pairs[row.pair].resetLevels
             }))
         })
         // console.debug(this.data)
@@ -276,14 +264,6 @@ class App extends Component {
         this.reloadPage()
     }
 
-    evolve(oldTotal, newTotal) {
-        const resetLevels = this.shouldResetLevels(oldTotal, newTotal) && this.vp1.hasPairsToReset()
-        this.vp1.evolve(resetLevels)
-        this.max = Math.max(this.max, newTotal)
-        return resetLevels;
-    }
-
-    shouldResetLevels = (oldTotal, newTotal) => (newTotal > this.max && this.max > 0) || (oldTotal < 0 && newTotal >= 0)
     displayChartAndTable = (rounds = 1000) => {
         const maxSampleRate = 1000
         const sampleRate = Math.max(1, Math.floor(rounds / maxSampleRate))
@@ -310,7 +290,7 @@ class App extends Component {
         const up = <button onClick={() => this.scroll(-1)} disabled={currentPage === 1}>▲</button>
         const down = <button onClick={() => this.scroll(1)} disabled={currentPage >= pageCount }>▼</button>
         const controls = {
-            simulatePairs:
+            randomPairs:
                 <div style={{ width: 700 }}>
                     {up}
                     <label>
@@ -321,21 +301,21 @@ class App extends Component {
                     </label>
                     {down}
                 </div>,
-            manual:
+            manualVirtualPlayer:
                 <div style={{ width: 700, textAlign: 'left' }}>
                     {up}
                     <label>
                         <strong>Bet:</strong>
-                        <input value={this.vp1.betAmount()} style={{ width: 50 }} readOnly />
+                        <input value={this.virtualPlayer.betAmount()} style={{ width: 50 }} readOnly />
                     </label>
-                    <button onClick={() => this.nextBet(true)}>
+                    <button onClick={() => this.nextManualBet(true)}>
                         Won ({ this.won })</button>
-                    <button onClick={() => this.nextBet(false)}>
+                    <button onClick={() => this.nextManualBet(false)}>
                         Lost ({ this.round - this.won })</button>
-                    <label><strong>Total: {this.vp1 ? this.vp1.total : 0}</strong></label>
+                    <label><strong>Total: {this.virtualPlayer ? this.virtualPlayer.total : 0}</strong></label>
                     {down}
                 </div>,
-            simRand: <div style={{ width: 700 }}>{up}<span style={{ width: 500 }}>&nbsp;</span>{down}</div>,
+            defaultControls: <div style={{ width: 700 }}>{up}<span style={{ width: 500 }}>&nbsp;</span>{down}</div>,
         }
         const rowBackground = rowInfo => {
             if (rowInfo && rowInfo.row.round === currentRound) return '#ccc'
@@ -343,19 +323,22 @@ class App extends Component {
             return ''
         }
         const columnBackground = colInfo =>
-            (colInfo && colInfo.id === 'slot' && this.state.locked && this.state.mode === 'simulatePairs')
+            (colInfo && colInfo.id === 'slot' && this.state.locked && this.state.mode === 'randomPairs')
                 ? '#ccc'
                 : ''
+        const chartColor = mode === 'randomRealPlayer'
+            ? ['#ccc300', '#cc00c3']
+            : ['#08a408', '#a82408']
         return (
             <div className="app">
                 <div className="container">
                     <div style={{ width: 700 }}>
                         <label>
-                            Def: <input type="number" min="2" max="10" value={defense} style={{ width: 30 }}
+                            Def: <input type="number" min="1" max="20" value={defense} style={{ width: 30 }}
                                 onChange={e => this.setState({ defense: parseInt(e.target.value, 10) })} />
                         </label>
                         <label>
-                            Pairs: <input type="number" min="1" max="30" value={pairs} style={{ width: 30 }}
+                            Pairs: <input type="number" min="1" max="100" value={pairs} style={{ width: 30 }}
                                 onChange={e => this.setState({ pairs: parseInt(e.target.value, 10) })} />
                         </label>
                         <label>
@@ -365,11 +348,13 @@ class App extends Component {
                         <label>
                             Mode:
                             <select value={mode} onChange={e => this.changeMode(e.target.value)} style={{ width: 130 }}>
-                                <option value="simRand">Sim Rand</option>
+                                <option value="randomRealPlayer">Random Real Player (=2V Pairs)</option>
+                                <option value="randomVirtualPair">Random Virtual Pair (=2V Players)</option>
                                 {[...Array(5).keys()].map(p => p + 1)
-                                    .map(p => <option key={p} value={p}>Sim 1x{p},0x{p}</option>)}
-                                {/*<option value="manual">Manual</option>*/}
-                                <option value="simulatePairs">Sim Pairs</option>
+                                    .map(p => <option key={p} value={p}>1x{p},0x{p} Virtual Pair</option>)}
+                                <option value="randomVirtualPlayer">Random Virtual Player</option>
+                                <option value="manualVirtualPlayer">Manual Virtual Player</option>
+                                <option value="randomPairs">Random Pairs</option>
                             </select>
                         </label>
                         <label>
@@ -378,8 +363,8 @@ class App extends Component {
                         </label>
                         <button onClick={this.start}>▶</button>
                     </div>
-                    {controls[mode] || controls['simRand']}
-                    <div style={{ fontSize: 'x-small', border: '1px solid grey' }}>Mar08 18h00</div>
+                    {controls[mode] || controls['defaultControls']}
+                    <div style={{ fontSize: 'x-small', border: '1px solid grey' }}>Mar21 23h56</div>
                 </div>
                 <div className="container">
                     <AreaChart width={700}
@@ -400,13 +385,13 @@ class App extends Component {
                             isAnimationActive={false} />
                         <Area type='monotone'
                             dataKey='total1'
-                            fill='#08a408'
-                            stroke='#08a408'
+                            fill={chartColor[0]}
+                            stroke={chartColor[0]}
                             isAnimationActive={false} />
                         <Area type='monotone'
                             dataKey='total2'
-                            fill='#a82408'
-                            stroke='#a82408'
+                            fill={chartColor[1]}
+                            stroke={chartColor[1]}
                             isAnimationActive={false} />
                     </AreaChart>
                     <ReactTable
