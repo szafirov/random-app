@@ -1,4 +1,4 @@
-import VirtualPlayer from './VirtualPlayer.js';
+import VirtualPlayer from './VirtualPlayer.js'
 
 const sum = (a, b) => a + b
 
@@ -7,8 +7,8 @@ export default class VirtualPair {
     constructor(pairs, defense, prototype) {
         this.max = 0
         this.players = [
-            new VirtualPlayer(pairs, defense, prototype ? prototype.players[0] : undefined),
-            new VirtualPlayer(pairs, defense, prototype ? prototype.players[1] : undefined),
+            new VirtualPlayer(pairs, defense, undefined, prototype ? prototype.players[0] : undefined),
+            new VirtualPlayer(pairs, defense, undefined, prototype ? prototype.players[1] : undefined),
         ]
     }
 

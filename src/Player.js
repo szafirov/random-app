@@ -1,6 +1,6 @@
 // const coefficients = [1, 1, 1, 2, 2, 4, 6, 10, 16, 26]
 // const coefficients = [1, 1, 1, 2, 2, 3, 4, 7, 11, 18]
-const coefficients = [1, 1, 2, 2, 3, 4, 5, 7, 9, 12, 16]
+const coefficients = [1, 1, 2, 2, 3, 4, 5, 7, 9, 12, 16, 20, 28, 38, 50, 65, 90, 120, 160, 210, 280, 375, 500, 666, 900]
 
 // const hasStarIndex = (index) => index < 5 && index !== 3
 // const hasStarIndex = (index) => index <= 6

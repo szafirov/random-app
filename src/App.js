@@ -1,23 +1,28 @@
-import React, { Component } from 'react';
-import './App.css';
+import React, { Component } from 'react'
+import './App.css'
 
-import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
 
-import ReactTable from 'react-table';
+import ReactTable from 'react-table'
 import 'react-table/react-table.css'
-import Random from 'random-js';
-import VirtualPlayer from './VirtualPlayer';
-import VirtualPair from './VirtualPair';
+import Random from 'random-js'
+import VirtualPlayer from './VirtualPlayer'
+import VirtualPair from './VirtualPair'
 
 const outcomeEngine = new Random(Random.engines.mt19937().autoSeed())
-const slotEngine = new Random(Random.engines.mt19937().autoSeed())
 const randomOutcome = () => outcomeEngine.bool() ? 1 : 0
-const randomSlot = () => slotEngine.bool() ? 1 : 0
-const genRandom = () => () => randomSlot()
-const genRepeat = (count) => {
-    let i = 0;
+
+const newRandomGenerator = () => {
+    const randomEngine = new Random(Random.engines.mt19937().autoSeed())
+    return () => randomEngine.bool() ? 1 : 0
+}
+
+const newRepeatingGenerator = (count) => () => {
+    let i = 0
     return () => i++ % (2 * count) < count ? 1 : 0
 }
+const alwaysOne = () => () => 1
+
 const column = (Header, accessor, width = 50) => ({ Header, accessor, width, sortable: false })
 
 class App extends Component {
@@ -37,7 +42,8 @@ class App extends Component {
             pairs: 10,
             chartData: [],
             pageData: [],
-            mode: 'randomRealPlayer',
+            mode: 'realPlayer',
+            slotGen: 'random',
             currentRound: 0,
             currentPair: 0,
             currentPage: 1,
@@ -54,7 +60,7 @@ class App extends Component {
         }
         this.columnsForMode = (mode) => {
             switch (mode) {
-                case 'randomPairs':
+                case 'pairs':
                     return [
                         column('Round', 'round', 60),
                         column('Level', 'level'),
@@ -69,7 +75,7 @@ class App extends Component {
                         column('Max', 'max', 60)
                     ]
                 case 'manualVirtualPlayer':
-                case 'randomVirtualPlayer':
+                case 'virtualPlayer':
                     return [
                         column('Round', 'round', 60),
                         column('Bet', 'bet'),
@@ -133,6 +139,21 @@ class App extends Component {
         this.viewPageFor(0, 0, true)
     }
 
+    changeSlotsGenerator = (slotGen) => {
+        this.setState({ slotGen }, this.initSlotGenerator)
+    }
+
+    initSlotGenerator = () => {
+        const { slotGen } = this.state
+        if (slotGen === 'random') {
+            this.newSlotGenerator = newRandomGenerator
+        } else {
+            const repeat = parseInt(slotGen, 10)
+            this.newSlotGenerator = repeat ? newRepeatingGenerator(repeat) : alwaysOne
+        }
+        this.slotGenerator = this.newSlotGenerator()
+    }
+
     resetData = () => {
         this.round = 0
         this.won = 0
@@ -140,46 +161,47 @@ class App extends Component {
         this.data = []
         this.oldTotal = 0
         this.max = 0
-        const { defense, pairs, locked } = this.state
-        this.virtualPlayer = new VirtualPlayer(pairs, defense, locked ? this.virtualPlayer : undefined)
-        this.vp1 = new VirtualPair(pairs, defense, locked ? this.vp1 : undefined)
-        this.vp2 = new VirtualPair(pairs, defense, locked ? this.vp2 : undefined)
-        this.setState({ chartData: [] });
+        this.setState({ chartData: [] })
+        this.initSlotGenerator()
     }
 
     start = () => {
         this.resetData()
         this.reloadPage()
         switch (this.state.mode) {
-            case 'randomPairs': this.runPairSimulation(); break
-            case 'manualVirtualPlayer': this.runManualVirtualPlayer(); break
-            case 'randomVirtualPlayer': this.runVirtualPlayerSimulation(genRandom()); break
-            case 'randomVirtualPair': this.runVirtualPairSimulation(genRandom()); break
-            case 'randomRealPlayer': this.runRealPlayerSimulation(genRandom()); break
-            default: this.runVirtualPairSimulation(genRepeat(parseInt(this.state.mode, 10))); break
+            case 'pairs': this.runPairSimulation(); break
+            case 'manualVirtualPlayer': this.startManualVirtualPlayer(); break
+            case 'virtualPlayer': this.runVirtualPlayerSimulation(); break
+            case 'virtualPair': this.runVirtualPairSimulation(); break
+            case 'realPlayer': this.runRealPlayerSimulation(); break
+            default: break;
         }
     }
 
-    runVirtualPlayerSimulation = (slotGenerator) => {
-        const { rounds } = this.state
+    runVirtualPlayerSimulation = () => {
+        const { defense, pairs, locked, rounds } = this.state
+        this.virtualPlayer = new VirtualPlayer(pairs, defense, undefined, locked ? this.virtualPlayer : undefined)
         this.data = [...Array(rounds).keys()].map(round =>
-            this.virtualPlayer.placeBetsAndComputeRow(round, randomOutcome(), slotGenerator()))
+            this.virtualPlayer.placeBetsAndComputeRow(round, randomOutcome(), this.slotGenerator()))
         this.displayChartAndTable(rounds)
         this.reloadPage()
     }
 
-    runVirtualPairSimulation = (slotGenerator) => {
-        const { rounds } = this.state
+    runVirtualPairSimulation = () => {
+        const { defense, pairs, locked, rounds } = this.state
+        this.vp1 = new VirtualPair(pairs, defense, locked ? this.vp1 : undefined)
         this.data = [...Array(rounds).keys()].map(round =>
-            this.vp1.placeBetsAndComputeRow(round, randomOutcome(), slotGenerator()))
+            this.vp1.placeBetsAndComputeRow(round, randomOutcome(), this.slotGenerator()))
         this.displayChartAndTable(rounds)
         this.reloadPage()
     }
 
-    runRealPlayerSimulation = (slotGenerator) => {
-        const { rounds } = this.state
+    runRealPlayerSimulation = () => {
+        const { defense, pairs, locked, rounds } = this.state
+        this.vp1 = new VirtualPair(pairs, defense, locked ? this.vp1 : undefined)
+        this.vp2 = new VirtualPair(pairs, defense, locked ? this.vp2 : undefined)
         this.data = [...Array(rounds).keys()].map(round => {
-            const nextSlot = slotGenerator()
+            const nextSlot = this.slotGenerator()
             const outcome = randomOutcome()
             const row1 = this.vp1.placeBetsAndComputeRow(round, outcome, nextSlot)
             const total1 = row1.total
@@ -214,7 +236,9 @@ class App extends Component {
         this.reloadPage()
     }
 
-    runManualVirtualPlayer = () => {
+    startManualVirtualPlayer = () => {
+        const { defense, pairs, locked } = this.state
+        this.virtualPlayer = new VirtualPlayer(pairs, defense, undefined, locked ? this.virtualPlayer : undefined)
         this.virtualPlayer.placeBets(this.round)
     }
 
@@ -238,14 +262,16 @@ class App extends Component {
             max:  this.virtualPlayer.max,
             resetLevels
         })
-        this.runManualVirtualPlayer()
+        this.virtualPlayer.placeBets(this.round)
         this.displayChartAndTable()
         this.reloadPage(this.round)
         this.round = this.round + 1
     }
 
     runPairSimulation = () => {
-        const { rounds } = this.state
+        const { defense, pairs, locked, rounds } = this.state
+        this.virtualPlayer = new VirtualPlayer(pairs, defense, this.newSlotGenerator,
+            locked ? this.virtualPlayer : undefined)
         this.data = [...Array(rounds).keys()].flatMap(round => {
             this.virtualPlayer.placeBets(round)
             const outcome = randomOutcome()
@@ -270,7 +296,7 @@ class App extends Component {
         const chartData = this.data.filter(row => row.round % sampleRate === 0)
         // console.debug(JSON.stringify(this.data))
         const pageCount =  Math.ceil(this.data.filter(row => row.pair === this.state.currentPair).length / this.pageSize)
-        this.setState({ chartData, pageCount });
+        this.setState({ chartData, pageCount })
         // console.debug(JSON.stringify(this.state))
     }
 
@@ -290,7 +316,7 @@ class App extends Component {
         const up = <button onClick={() => this.scroll(-1)} disabled={currentPage === 1}>▲</button>
         const down = <button onClick={() => this.scroll(1)} disabled={currentPage >= pageCount }>▼</button>
         const controls = {
-            randomPairs:
+            pairs:
                 <div style={{ width: 700 }}>
                     {up}
                     <label>
@@ -306,11 +332,11 @@ class App extends Component {
                     {up}
                     <label>
                         <strong>Bet:</strong>
-                        <input value={this.virtualPlayer.betAmount()} style={{ width: 50 }} readOnly />
+                        <input value={this.virtualPlayer ? this.virtualPlayer.betAmount() : 0} style={{ width: 50 }} readOnly />
                     </label>
-                    <button onClick={() => this.nextManualBet(true)}>
+                    <button onClick={() => this.nextManualBet(true)} disabled={!this.virtualPlayer}>
                         Won ({ this.won })</button>
-                    <button onClick={() => this.nextManualBet(false)}>
+                    <button onClick={() => this.nextManualBet(false)} disabled={!this.virtualPlayer}>
                         Lost ({ this.round - this.won })</button>
                     <label><strong>Total: {this.virtualPlayer ? this.virtualPlayer.total : 0}</strong></label>
                     {down}
@@ -323,10 +349,10 @@ class App extends Component {
             return ''
         }
         const columnBackground = colInfo =>
-            (colInfo && colInfo.id === 'slot' && this.state.locked && this.state.mode === 'randomPairs')
+            (colInfo && colInfo.id === 'slot' && this.state.locked && this.state.mode === 'pairs')
                 ? '#ccc'
                 : ''
-        const chartColor = mode === 'randomRealPlayer'
+        const chartColor = mode === 'realPlayer'
             ? ['#ccc300', '#cc00c3']
             : ['#08a408', '#a82408']
         return (
@@ -334,31 +360,39 @@ class App extends Component {
                 <div className="container">
                     <div style={{ width: 700 }}>
                         <label>
-                            Def: <input type="number" min="1" max="20" value={defense} style={{ width: 30 }}
+                            D: <input type="number" min="1" max="20" value={defense} style={{ width: 30 }}
                                 onChange={e => this.setState({ defense: parseInt(e.target.value, 10) })} />
                         </label>
                         <label>
-                            Pairs: <input type="number" min="1" max="100" value={pairs} style={{ width: 30 }}
+                            P: <input type="number" min="1" max="100" value={pairs} style={{ width: 30 }}
                                 onChange={e => this.setState({ pairs: parseInt(e.target.value, 10) })} />
                         </label>
                         <label>
-                            Rounds: <input type="number" min="0" max="10000" value={rounds} style={{ width: 60 }}
+                            R: <input type="number" min="0" max="10000" value={rounds} style={{ width: 50 }}
                                 onChange={e => this.setState({ rounds: parseInt(e.target.value, 10) })} />
                         </label>
                         <label>
                             Mode:
-                            <select value={mode} onChange={e => this.changeMode(e.target.value)} style={{ width: 130 }}>
-                                <option value="randomRealPlayer">Random Real Player (=2V Pairs)</option>
-                                <option value="randomVirtualPair">Random Virtual Pair (=2V Players)</option>
-                                {[...Array(5).keys()].map(p => p + 1)
-                                    .map(p => <option key={p} value={p}>1x{p},0x{p} Virtual Pair</option>)}
-                                <option value="randomVirtualPlayer">Random Virtual Player</option>
+                            <select value={mode} onChange={e => this.changeMode(e.target.value)} style={{ width: 110 }}>
+                                <option value="realPlayer">Real Player (=2V Pairs)</option>
+                                <option value="virtualPair">Virtual Pair (=2V Players)</option>
+                                <option value="virtualPlayer">Virtual Player</option>
                                 <option value="manualVirtualPlayer">Manual Virtual Player</option>
-                                <option value="randomPairs">Random Pairs</option>
+                                <option value="pairs">Simple Pairs</option>
                             </select>
                         </label>
                         <label>
-                            Lock:
+                            Slots:
+                            <select onChange={e => this.changeSlotsGenerator(e.target.value)} style={{ width: 100 }}
+                                    disabled={mode === 'manualVirtualPlayer'}>
+                                <option key="random" value="random">Random</option>
+                                <option key={0} value={0}>1,1,1,1,1,...</option>
+                                {[...Array(5).keys()].map(p => p + 1)
+                                    .map(p => <option key={p} value={p}>1x{p},0x{p}</option>)}
+                            </select>
+                        </label>
+                        <label>
+                            <span role="img" aria-label="lock">🔒</span>:
                             <input type="checkbox" onClick={e => this.setState({ locked: e.target.checked })} />
                         </label>
                         <button onClick={this.start}>▶</button>
@@ -413,7 +447,7 @@ class App extends Component {
                     />
                 </div>
             </div>
-        );
+        )
     }
 }
 
@@ -426,4 +460,4 @@ function CustomTooltip(props) {
     return null
 }
 
-export default App;
+export default App

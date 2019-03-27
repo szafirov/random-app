@@ -1,12 +1,12 @@
-import Random from 'random-js';
+import Random from 'random-js'
 import Player from './Player'
 
 export default class Pair {
 
-    constructor(index, defense, prototype) {
-        this.index = index
+    constructor(defense, slotGenerator, prototype) {
         this.level = 0
-        this.random = new Random(Random.engines.mt19937().autoSeed());
+        this.slotGenerator = slotGenerator
+        this.random = new Random(Random.engines.mt19937().autoSeed())
         this.players = [new Player(defense), new Player(defense)]
         this.slotsPerRound = (prototype || {}).slotsPerRound || []
     }
@@ -18,9 +18,13 @@ export default class Pair {
     placeBets(round) {
         this.slotsPerRound[round] = this.slotsPerRound && this.slotsPerRound.length > round
             ? this.slotsPerRound[round]
-            : this.randomSlot()
+            : this.slotGenerator
+                ? this.slotGenerator()
+                : this.randomSlot()
+        // console.debug(this.slotsPerRound.length, round, this.slotsPerRound[round])
         this.players[0].placeBet( this.slotsPerRound[round])
         this.players[1].placeBet(1 - this.slotsPerRound[round])
+        // console.debug(this.players.map(p => p.bet))
     }
 
     playerBySlot(slot) {

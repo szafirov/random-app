@@ -1,11 +1,11 @@
-import Pair from './Pair.js';
+import Pair from './Pair.js'
 
 const sum = (a, b) => a + b
 
 export default class VirtualPlayer {
-    constructor(pairs, defense, prototype) {
+    constructor(pairs, defense, newSlotGenerator, prototype) {
         this.pairs = [...Array(pairs).keys()].map(index =>
-            new Pair(index, defense, (prototype || { pairs: []}).pairs[index]))
+            new Pair(defense, newSlotGenerator && newSlotGenerator(), (prototype || { pairs: []}).pairs[index]))
         this.gain = 0
         this.total = 0
         this.max = 0
@@ -22,7 +22,7 @@ export default class VirtualPlayer {
     computeGain(outcome, won) {
         const rows = this.pairs.map(pair => pair.computeRow(outcome))
         this.gain = (won ? 1 : -1) * this.betAmount()
-        return this.addTotal(rows);
+        return this.addTotal(rows)
     }
     addTotal(rows) {
         this.total += this.gain
@@ -43,10 +43,12 @@ export default class VirtualPlayer {
         return this.pairs.filter(pair => pair.canReset()).length > 0
     }
     betAmount = () => {
+        // console.debug(this.pairs)
         const betSum = slot => this.pairs
             .map(pair => pair.playerBySlot(slot))
             .map(player => player.bet)
             .reduce(sum)
+        // console.debug(`betSum: ${betSum(0)} - ${betSum(1)}`)
         return Math.abs(betSum(0) - betSum(1))
     }
     placeBetsAndComputeRow = (round, outcome, slot) => {
