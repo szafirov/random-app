@@ -9,6 +9,7 @@ export default class Pair {
         this.random = new Random(Random.engines.mt19937().autoSeed())
         this.players = [new Player(defense), new Player(defense)]
         this.slotsPerRound = (prototype || {}).slotsPerRound || []
+        // console.debug(this.slotsPerRound.join(','))
     }
 
     randomSlot() {
@@ -16,7 +17,7 @@ export default class Pair {
     }
 
     placeBets(round) {
-        this.slotsPerRound[round] = this.slotsPerRound && this.slotsPerRound.length > round
+        this.slotsPerRound[round] = this.slotsPerRound && this.slotsPerRound.length > round && round > 2
             ? this.slotsPerRound[round]
             : this.slotGenerator
                 ? this.slotGenerator()

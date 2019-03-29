@@ -4,11 +4,11 @@ const sum = (a, b) => a + b
 
 export default class VirtualPair {
 
-    constructor(pairs, defense, prototype) {
+    constructor(pairs, defense, prototypePlayer) {
         this.max = 0
         this.players = [
-            new VirtualPlayer(pairs, defense, undefined, prototype ? prototype.players[0] : undefined),
-            new VirtualPlayer(pairs, defense, undefined, prototype ? prototype.players[1] : undefined),
+            new VirtualPlayer(pairs, defense, undefined, prototypePlayer),
+            new VirtualPlayer(pairs, defense, undefined, prototypePlayer),
         ]
     }
 

@@ -189,7 +189,7 @@ class App extends Component {
 
     runVirtualPairSimulation = () => {
         const { defense, pairs, locked, rounds } = this.state
-        this.vp1 = new VirtualPair(pairs, defense, locked ? this.vp1 : undefined)
+        this.vp1 = new VirtualPair(pairs, defense, locked ? this.virtualPlayer : undefined)
         this.data = [...Array(rounds).keys()].map(round =>
             this.vp1.placeBetsAndComputeRow(round, randomOutcome(), this.slotGenerator()))
         this.displayChartAndTable(rounds)
@@ -198,8 +198,8 @@ class App extends Component {
 
     runRealPlayerSimulation = () => {
         const { defense, pairs, locked, rounds } = this.state
-        this.vp1 = new VirtualPair(pairs, defense, locked ? this.vp1 : undefined)
-        this.vp2 = new VirtualPair(pairs, defense, locked ? this.vp2 : undefined)
+        this.vp1 = new VirtualPair(pairs, defense, locked ? this.virtualPlayer : undefined)
+        this.vp2 = new VirtualPair(pairs, defense, locked ? this.virtualPlayer : undefined)
         this.data = [...Array(rounds).keys()].map(round => {
             const nextSlot = this.slotGenerator()
             const outcome = randomOutcome()
@@ -398,7 +398,7 @@ class App extends Component {
                         <button onClick={this.start}>▶</button>
                     </div>
                     {controls[mode] || controls['defaultControls']}
-                    <div style={{ fontSize: 'x-small', border: '1px solid grey' }}>Mar21 23h56</div>
+                    <div style={{ fontSize: 'x-small', border: '1px solid grey' }}>Mar 28, 20h54</div>
                 </div>
                 <div className="container">
                     <AreaChart width={700}
