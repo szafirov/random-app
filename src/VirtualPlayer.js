@@ -1,4 +1,5 @@
 import Pair from './Pair.js'
+import Common from "./Common"
 
 const sum = (a, b) => a + b
 
@@ -39,9 +40,6 @@ export default class VirtualPlayer {
             else pair.evolve()
         })
     }
-    hasPairsToReset() {
-        return this.pairs.filter(pair => pair.canReset()).length > 0
-    }
     betAmount = () => {
         // console.debug(this.pairs)
         const betSum = slot => this.pairs
@@ -71,11 +69,11 @@ export default class VirtualPlayer {
         }
     }
     resetOrEvolve = (oldTotal) => {
-        const resetLevels = this.shouldResetLevels(oldTotal, this.total)
-        this.evolve(resetLevels)
+        const oldMax = this.max
         this.max = Math.max(this.max, this.total)
+        const resetLevels = Common.shouldResetLevels(oldTotal, this.total, oldMax, this.max)
+        this.evolve(resetLevels)
         return resetLevels
     }
-    shouldResetLevels = (oldTotal, newTotal) =>
-        ((newTotal > this.max && this.max > 0) || (oldTotal < 0 && newTotal >= 0)) && this.hasPairsToReset()
+
 }
