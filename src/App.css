@@ -11,17 +11,45 @@ label {
 }
 
 .app {
-  text-align: center;
+    display: grid;
+    grid-template-columns: 50% 50%;
+    grid-template-rows: 35px 35px auto 10px ;
+    /*grid-template-rows: auto;*/
+    grid-template-areas:
+            "top top"
+            "left-top right-top"
+            "left right-bottom"
+            "bottom bottom";
+
 }
 
-.container {
-    display: flex;
-    flex-direction: row;
+.controls {
+    grid-area: top;
+    text-align: center;
 }
 
-.tooltip {
-    background-color: #f7f7f7;
-    padding: 10px;
-    text-align: left;
-    list-style: none;
+.chart {
+    grid-area: left;
+}
+
+.grid {
+    grid-area: right-bottom;
+}
+
+
+.chart-controls {
+    grid-area: left-top;
+    text-align: center;
+}
+
+.grid-controls {
+    grid-area: right-top;
+    text-align: center;
+}
+
+.footer {
+    grid-area: bottom;
+    font-size: x-small;
+    border-top: 1px solid grey;
+    text-align: center;
 }

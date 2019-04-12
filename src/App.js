@@ -17,11 +17,17 @@ const newRandomGenerator = () => {
     return () => randomEngine.bool() ? 1 : 0
 }
 
-const newRepeatingGenerator = (count) => () => {
-    let i = 0
-    return () => i++ % (2 * count) < count ? 1 : 0
+const newRepeatingGenerator = (count) => (round) => round % (2 * count) < count ? 1 : 0
+
+const alwaysOne = () => 1
+
+const slotGeneratorByName = (slotGeneratorName) => {
+    if (slotGeneratorName === 'random') {
+        return newRandomGenerator()
+    }
+    const repeat = parseInt(slotGeneratorName, 10)
+    return repeat ? newRepeatingGenerator(repeat) : alwaysOne
 }
-const alwaysOne = () => () => 1
 
 const column = (Header, accessor, width = 50) => ({ Header, accessor, width, sortable: false })
 
@@ -44,6 +50,7 @@ class App extends Component {
             pageData: [],
             mode: 'realPlayer',
             slotGen: 'random',
+            pairSlotGen: 'random',
             currentRound: 0,
             currentPair: 0,
             currentPage: 1,
@@ -103,6 +110,8 @@ class App extends Component {
             }
         }
         this.pageSize = 20
+        this.slotGenerator = newRandomGenerator()
+        this.pairSlotGenerator = newRandomGenerator()
 
         this.scroll = (direction) => {
             const { currentRound, currentPair } = this.state
@@ -140,19 +149,15 @@ class App extends Component {
     }
 
     changeSlotsGenerator = (slotGen) => {
-        this.setState({ slotGen }, this.initSlotGenerator)
+        this.setState({ slotGen },
+            () => this.slotGenerator = slotGeneratorByName(slotGen))
     }
 
-    initSlotGenerator = () => {
-        const { slotGen } = this.state
-        if (slotGen === 'random') {
-            this.newSlotGenerator = newRandomGenerator
-        } else {
-            const repeat = parseInt(slotGen, 10)
-            this.newSlotGenerator = repeat ? newRepeatingGenerator(repeat) : alwaysOne
-        }
-        this.slotGenerator = this.newSlotGenerator()
+    changePairSlotsGenerator = (pairSlotGen) => {
+        this.setState({ pairSlotGen },
+            () => this.pairSlotGenerator = slotGeneratorByName(pairSlotGen))
     }
+
 
     resetData = () => {
         this.round = 0
@@ -162,7 +167,6 @@ class App extends Component {
         this.oldTotal = 0
         this.max = 0
         this.setState({ chartData: [] })
-        this.initSlotGenerator()
     }
 
     start = () => {
@@ -179,41 +183,40 @@ class App extends Component {
     }
 
     runVirtualPlayerSimulation = () => {
-        const { defense, pairs, locked, rounds } = this.state
-        this.virtualPlayer = new VirtualPlayer(pairs, defense, undefined, locked ? this.virtualPlayer : undefined)
+        const { rounds } = this.state
+        this.virtualPlayer = this.newVirtualPlayer()
         this.data = [...Array(rounds).keys()].map(round =>
-            this.virtualPlayer.placeBetsAndComputeRow(round, randomOutcome(), this.slotGenerator()))
+            this.virtualPlayer.placeBetsAndComputeRow(round, randomOutcome(), this.slotGenerator(round)))
         this.displayChartAndTable(rounds)
         this.reloadPage()
     }
 
     runVirtualPairSimulation = () => {
         const { defense, pairs, locked, rounds } = this.state
-        this.vp1 = new VirtualPair(pairs, defense, locked ? this.virtualPlayer : undefined)
+        this.vp1 = new VirtualPair(pairs, defense, this.pairSlotGenerator, locked ? this.virtualPlayer : undefined)
         this.data = [...Array(rounds).keys()].map(round =>
-            this.vp1.placeBetsAndComputeRow(round, randomOutcome(), this.slotGenerator()))
+            this.vp1.placeBetsAndComputeRow(round, randomOutcome(), this.slotGenerator(round)))
         this.displayChartAndTable(rounds)
         this.reloadPage()
     }
 
     runRealPlayerSimulation = () => {
-        const { defense, pairs, locked, rounds } = this.state
-        this.vp1 = new VirtualPair(pairs, defense, locked ? this.virtualPlayer : undefined)
-        this.vp2 = new VirtualPair(pairs, defense, locked ? this.virtualPlayer : undefined)
+        const { rounds } = this.state
+        this.vp1 = this.newVirtualPlayer()
+        this.vp2 = this.newVirtualPlayer()
         this.data = [...Array(rounds).keys()].map(round => {
-            const nextSlot = this.slotGenerator()
+            const slot = this.slotGenerator(round)
             const outcome = randomOutcome()
-            const row1 = this.vp1.placeBetsAndComputeRow(round, outcome, nextSlot)
+            const row1 = this.vp1.placeBetsAndComputeRow(round, outcome, slot)
             const total1 = row1.total
             const bet1 = row1.bet
-            const row2 = this.vp2.placeBetsAndComputeRow(round, outcome, 1 - nextSlot)
+            const row2 = this.vp2.placeBetsAndComputeRow(round, outcome, 1 - slot)
             const total2 = row2.total
             const bet2 = row2.bet
             const bet = Math.abs(bet1 - bet2)
             const total = total1 + total2
             const won = this.oldTotal < total
             const lost = this.oldTotal > total
-            const slot = won ? outcome : 1 - outcome
             this.oldTotal = total
             this.max = Math.max(this.max, total)
             return {
@@ -237,8 +240,7 @@ class App extends Component {
     }
 
     startManualVirtualPlayer = () => {
-        const { defense, pairs, locked } = this.state
-        this.virtualPlayer = new VirtualPlayer(pairs, defense, undefined, locked ? this.virtualPlayer : undefined)
+        this.virtualPlayer = this.newVirtualPlayer()
         this.virtualPlayer.placeBets(this.round)
     }
 
@@ -269,9 +271,8 @@ class App extends Component {
     }
 
     runPairSimulation = () => {
-        const { defense, pairs, locked, rounds } = this.state
-        this.virtualPlayer = new VirtualPlayer(pairs, defense, this.newSlotGenerator,
-            locked ? this.virtualPlayer : undefined)
+        const { rounds } = this.state
+        this.virtualPlayer = this.newVirtualPlayer()
         this.data = [...Array(rounds).keys()].flatMap(round => {
             this.virtualPlayer.placeBets(round)
             const outcome = randomOutcome()
@@ -288,6 +289,11 @@ class App extends Component {
         // console.debug(this.data)
         this.displayChartAndTable(rounds)
         this.reloadPage()
+    }
+
+    newVirtualPlayer() {
+        const { defense, pairs, locked } = this.state
+        return new VirtualPlayer(pairs, defense, this.pairSlotGenerator, locked ? this.virtualPlayer : undefined)
     }
 
     displayChartAndTable = (rounds = 1000) => {
@@ -317,7 +323,7 @@ class App extends Component {
         const down = <button onClick={() => this.scroll(1)} disabled={currentPage >= pageCount }>▼</button>
         const controls = {
             pairs:
-                <div style={{ width: 700 }}>
+                <div>
                     {up}
                     <label>
                         <select value={currentPair}
@@ -328,7 +334,7 @@ class App extends Component {
                     {down}
                 </div>,
             manualVirtualPlayer:
-                <div style={{ width: 700, textAlign: 'left' }}>
+                <div>
                     {up}
                     <label>
                         <strong>Bet:</strong>
@@ -341,7 +347,7 @@ class App extends Component {
                     <label><strong>Total: {this.virtualPlayer ? this.virtualPlayer.total : 0}</strong></label>
                     {down}
                 </div>,
-            defaultControls: <div style={{ width: 700 }}>{up}<span style={{ width: 500 }}>&nbsp;</span>{down}</div>,
+            defaultControls: <div>{up} &nbsp; {down}</div>,
         }
         const rowBackground = rowInfo => {
             if (rowInfo && rowInfo.row.round === currentRound) return '#ccc'
@@ -357,52 +363,58 @@ class App extends Component {
             : ['#08a408', '#a82408']
         return (
             <div className="app">
-                <div className="container">
-                    <div style={{ width: 700 }}>
-                        <label>
-                            D: <input type="number" min="1" max="20" value={defense} style={{ width: 30 }}
-                                onChange={e => this.setState({ defense: parseInt(e.target.value, 10) })} />
-                        </label>
-                        <label>
-                            P: <input type="number" min="1" max="100" value={pairs} style={{ width: 30 }}
-                                onChange={e => this.setState({ pairs: parseInt(e.target.value, 10) })} />
-                        </label>
-                        <label>
-                            R: <input type="number" min="0" max="10000" value={rounds} style={{ width: 50 }}
-                                onChange={e => this.setState({ rounds: parseInt(e.target.value, 10) })} />
-                        </label>
-                        <label>
-                            Mode:
-                            <select value={mode} onChange={e => this.changeMode(e.target.value)} style={{ width: 110 }}>
-                                <option value="realPlayer">Real Player (=2V Pairs)</option>
-                                <option value="virtualPair">Virtual Pair (=2V Players)</option>
-                                <option value="virtualPlayer">Virtual Player</option>
-                                <option value="manualVirtualPlayer">Manual Virtual Player</option>
-                                <option value="pairs">Simple Pairs</option>
-                            </select>
-                        </label>
-                        <label>
-                            Slots:
-                            <select onChange={e => this.changeSlotsGenerator(e.target.value)} style={{ width: 100 }}
-                                    disabled={mode === 'manualVirtualPlayer'}>
-                                <option key="random" value="random">Random</option>
-                                <option key={0} value={0}>1,1,1,1,1,...</option>
-                                {[...Array(5).keys()].map(p => p + 1)
-                                    .map(p => <option key={p} value={p}>1x{p},0x{p}</option>)}
-                            </select>
-                        </label>
-                        <label>
-                            <span role="img" aria-label="lock">🔒</span>:
-                            <input type="checkbox" onClick={e => this.setState({ locked: e.target.checked })} />
-                        </label>
-                        <button onClick={this.start}>▶</button>
-                    </div>
-                    {controls[mode] || controls['defaultControls']}
-                    <div style={{ fontSize: 'x-small', border: '1px solid grey' }}>Mar 28, 20h54</div>
+                <div className="controls">
+                    <label>
+                        Defense: <input type="number" min="1" max="20" value={defense} style={{ width: 30 }}
+                            onChange={e => this.setState({ defense: parseInt(e.target.value, 10) })} />
+                    </label>
+                    <label>
+                        Pairs: <input type="number" min="1" max="100" value={pairs} style={{ width: 30 }}
+                            onChange={e => this.setState({ pairs: parseInt(e.target.value, 10) })} />
+                    </label>
+                    <label>
+                        Rounds: <input type="number" min="0" max="10000" value={rounds} style={{ width: 50 }}
+                            onChange={e => this.setState({ rounds: parseInt(e.target.value, 10) })} />
+                    </label>
+                    <label>
+                        Mode:
+                        <select value={mode} onChange={e => this.changeMode(e.target.value)} style={{ width: 110 }}>
+                            <option value="realPlayer">Real Player (=2V Pairs)</option>
+                            <option value="virtualPair">Virtual Pair (=2V Players)</option>
+                            <option value="virtualPlayer">Virtual Player</option>
+                            <option value="manualVirtualPlayer">Manual Virtual Player</option>
+                            <option value="pairs">Simple Pairs</option>
+                        </select>
+                    </label>
+                    <label>
+                        Current Slots:
+                        <select onChange={e => this.changeSlotsGenerator(e.target.value)} style={{ width: 100 }}
+                                disabled={mode === 'manualVirtualPlayer' || mode === 'pairs'}>
+                            <option key="random" value="random">Random</option>
+                            <option key={0} value={0}>1,1,1,1,1,...</option>
+                            {[...Array(5).keys()].map(p => p + 1)
+                                .map(p => <option key={p} value={p}>1x{p},0x{p}</option>)}
+                        </select>
+                    </label>
+                    <label>
+                        Pair Slots:
+                        <select onChange={e => this.changePairSlotsGenerator(e.target.value)} style={{ width: 100 }}>
+                            <option key="random" value="random">Random</option>
+                            <option key={0} value={0}>1,1,1,1,1,...</option>
+                            {[...Array(5).keys()].map(p => p + 1)
+                                .map(p => <option key={p} value={p}>1x{p},0x{p}</option>)}
+                        </select>
+                    </label>
+                    <label>
+                        <span role="img" aria-label="lock">🔒</span>:
+                        <input type="checkbox" onClick={e => this.setState({ locked: e.target.checked })} />
+                    </label>
+                    <button onClick={this.start}>▶</button>
                 </div>
-                <div className="container">
-                    <AreaChart width={700}
-                        height={700}
+                <div className="chart-controls">&nbsp;</div>
+                <div className="chart">
+                    <AreaChart width={window.innerWidth / 2- 50}
+                        height={window.innerHeight - 100}
                         data={chartData}
                         margin={this.chart.margins}>
                         <XAxis dataKey="round" />
@@ -428,24 +440,29 @@ class App extends Component {
                             stroke={chartColor[1]}
                             isAnimationActive={false} />
                     </AreaChart>
-                    <ReactTable
-                        data={pageData}
-                        columns={this.columnsForMode(this.state.mode)}
-                        showPagination={false}
-                        className="table -highlight"
-                        getTrProps={(state, rowInfo) => ({
-                            style: {
-                                background: rowBackground(rowInfo)
-                            }
-                        })}
-                        getTdProps={(state, rowInfo, column) => ({
-
-                            style: {
-                                background: columnBackground(column)
-                            }
-                        })}
-                    />
                 </div>
+                <div className="grid-controls">
+                    {controls[mode] || controls['defaultControls']}
+                </div>
+                <ReactTable
+                    data={pageData}
+                    columns={this.columnsForMode(this.state.mode)}
+                    showPagination={false}
+                    className="table -highlight grid"
+                    style={{ width: window.innerWidth / 2 - 50 }}
+                    getTrProps={(state, rowInfo) => ({
+                        style: {
+                            background: rowBackground(rowInfo)
+                        }
+                    })}
+                    getTdProps={(state, rowInfo, column) => ({
+
+                        style: {
+                            background: columnBackground(column)
+                        }
+                    })}
+                />
+                <div className="footer">Apr 11, 22h54</div>
             </div>
         )
     }

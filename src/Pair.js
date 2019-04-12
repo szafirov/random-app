@@ -4,6 +4,8 @@ import Player from './Player'
 export default class Pair {
 
     constructor(defense, slotGenerator, prototype) {
+        this.randomAfterResetRounds = 3
+        this.roundsSinceReset = 0
         this.level = 0
         this.slotGenerator = slotGenerator
         this.random = new Random(Random.engines.mt19937().autoSeed())
@@ -16,15 +18,19 @@ export default class Pair {
         return this.random.bool() ? 1 : 0
     }
 
+    computeSlot(round) {
+        if (this.roundsSinceReset < this.randomAfterResetRounds) return this.randomSlot()
+        if (this.slotsPerRound && round < this.slotsPerRound.length)
+            return this.slotsPerRound[round]
+        return this.slotGenerator(this.roundsSinceReset - this.randomAfterResetRounds)
+    }
+
     placeBets(round) {
-        this.slotsPerRound[round] = this.slotsPerRound && this.slotsPerRound.length > round && round > 2
-            ? this.slotsPerRound[round]
-            : this.slotGenerator
-                ? this.slotGenerator()
-                : this.randomSlot()
+        this.slotsPerRound[round] = this.computeSlot(round)
         // console.debug(this.slotsPerRound.length, round, this.slotsPerRound[round])
         this.players[0].placeBet( this.slotsPerRound[round])
         this.players[1].placeBet(1 - this.slotsPerRound[round])
+        this.roundsSinceReset++
         // console.debug(this.players.map(p => p.bet))
     }
 
@@ -63,5 +69,6 @@ export default class Pair {
     reset() {
         this.resetLevels = true
         this.players.forEach(p => p.reset())
+        this.roundsSinceReset = 0
     }
 }

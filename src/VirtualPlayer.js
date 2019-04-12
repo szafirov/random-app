@@ -3,9 +3,9 @@ import Pair from './Pair.js'
 const sum = (a, b) => a + b
 
 export default class VirtualPlayer {
-    constructor(pairs, defense, newSlotGenerator, prototype) {
+    constructor(pairs, defense, pairSlotGenerator, prototype) {
         this.pairs = [...Array(pairs).keys()].map(index =>
-            new Pair(defense, newSlotGenerator && newSlotGenerator(), (prototype || { pairs: []}).pairs[index]))
+            new Pair(defense, pairSlotGenerator, (prototype || { pairs: []}).pairs[index]))
         this.gain = 0
         this.total = 0
         this.max = 0
