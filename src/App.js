@@ -6,9 +6,9 @@ import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
 import ReactTable from 'react-table'
 import 'react-table/react-table.css'
 import Random from 'random-js'
-import VirtualPlayer from './VirtualPlayer'
-import VirtualPair from './VirtualPair'
-import Common from "./Common"
+import RealPlayer from './RealPlayer.js'
+import VirtualPlayer from './VirtualPlayer.js'
+import VirtualPair from './VirtualPair.js'
 
 const outcomeEngine = new Random(Random.engines.mt19937().autoSeed())
 const randomOutcome = () => outcomeEngine.bool() ? 1 : 0
@@ -103,6 +103,7 @@ class App extends Component {
                         column('Slot', 'slot'),
                         column('Out', 'outcome'),
                         matchCol,
+                        column('Gain', 'gain'),
                         column('Total1', 'total1', 60),
                         column('Total2', 'total2', 60),
                         column('Total', 'total', 60),
@@ -202,43 +203,9 @@ class App extends Component {
 
     runRealPlayerSimulation = () => {
         const { rounds } = this.state
-        this.vp1 = this.newVirtualPair()
-        this.vp2 = this.newVirtualPair()
-        this.data = [...Array(rounds).keys()].map(round => {
-            const slot = this.slotGenerator(round)
-            const outcome = randomOutcome()
-            const row1 = this.vp1.placeBets(round, outcome, slot)
-            const total1 = row1.total
-            const bet1 = row1.bet
-            const row2 = this.vp2.placeBets(round, outcome, 1 - slot)
-            const total2 = row2.total
-            const bet2 = row2.bet
-            const bet = Math.abs(bet1 - bet2)
-            const total = total1 + total2
-            const won = this.oldTotal < total
-            const lost = this.oldTotal > total
-            const oldMax = this.max
-            this.max = Math.max(this.max, total)
-            const resetLevels = Common.shouldResetLevels(this.oldTotal, total,  oldMax, this.max)
-            this.vp1.evolve(resetLevels)
-            this.vp2.evolve(resetLevels)
-            this.oldTotal = total
-            return {
-                round,
-                pair: 0,
-                bet1,
-                bet2,
-                bet,
-                slot,
-                outcome,
-                match: won ? 'W' : lost ? 'L' : '0',
-                total1,
-                total2,
-                total,
-                max: this.max,
-                resetLevels,
-            }
-        })
+        this.realPlayer = this.newRealPlayer()
+        this.data = [...Array(rounds).keys()].map(round =>
+            this.realPlayer.placeBetsAndComputeRow(round, randomOutcome(), this.slotGenerator(round)))
         this.displayChartAndTable(rounds)
         this.reloadPage()
     }
@@ -303,6 +270,11 @@ class App extends Component {
     newVirtualPair() {
         const { defense, pairs, locked } = this.state
         return new VirtualPair(pairs, defense, this.pairSlotGenerator, locked ? this.virtualPlayer : undefined)
+    }
+
+    newRealPlayer() {
+        const { defense, pairs, locked } = this.state
+        return new RealPlayer(pairs, defense, this.pairSlotGenerator, locked ? this.virtualPlayer : undefined)
     }
 
     displayChartAndTable = (rounds = 1000) => {

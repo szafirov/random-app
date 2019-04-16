@@ -1,5 +1,5 @@
 import Random from 'random-js'
-import Player from './Player'
+import Player from './Player.js'
 
 export default class Pair {
 

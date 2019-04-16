@@ -1,30 +1,32 @@
+import {sum, shouldResetLevels} from './Common.js'
 import Pair from './Pair.js'
-import Common from "./Common"
-
-const sum = (a, b) => a + b
 
 export default class VirtualPlayer {
     constructor(pairs, defense, pairSlotGenerator, prototype) {
         this.pairs = [...Array(pairs).keys()].map(index =>
-            new Pair(defense, pairSlotGenerator, (prototype || { pairs: []}).pairs[index]))
+            new Pair(defense, pairSlotGenerator, (prototype || {pairs: []}).pairs[index]))
         this.gain = 0
         this.total = 0
         this.max = 0
     }
+
     placeBets(round) {
         this.pairs.forEach(pair => pair.placeBets(round))
         return this.betAmount()
     }
+
     computeRows(outcome) {
         const rows = this.pairs.map(pair => pair.computeRow(outcome))
         this.gain = this.pairs.map(pair => pair.gain).reduce(sum)
         return this.addTotal(rows)
     }
+
     computeGain(outcome, won) {
         const rows = this.pairs.map(pair => pair.computeRow(outcome))
         this.gain = (won ? 1 : -1) * this.betAmount()
         return this.addTotal(rows)
     }
+
     addTotal(rows) {
         this.total += this.gain
         return rows.map((row, pair) => ({
@@ -34,12 +36,14 @@ export default class VirtualPlayer {
             total: this.total,
         }))
     }
+
     evolve(resetLevels) {
         this.pairs.forEach(pair => {
             if (resetLevels && pair.canReset()) pair.reset()
             else pair.evolve()
         })
     }
+
     betAmount = () => {
         // console.debug(this.pairs)
         const betSum = slot => this.pairs
@@ -71,7 +75,7 @@ export default class VirtualPlayer {
     resetOrEvolve = (oldTotal) => {
         const oldMax = this.max
         this.max = Math.max(this.max, this.total)
-        const resetLevels = Common.shouldResetLevels(oldTotal, this.total, oldMax, this.max)
+        const resetLevels = shouldResetLevels(oldTotal, this.total, oldMax, this.max)
         this.evolve(resetLevels)
         return resetLevels
     }
