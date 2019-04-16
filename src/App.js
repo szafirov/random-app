@@ -443,7 +443,7 @@ class App extends Component {
                         }
                     })}
                 />
-                <div className="footer">Apr 11, 22h54</div>
+                <div className="footer">Apr 15, 20h02</div>
             </div>
         )
     }
