@@ -12,7 +12,6 @@ export default class VirtualPair {
         ]
     }
 
-
     placeBetsAndComputeRow(round, outcome, slot) {
         const [ bet1, bet2 ] = this.players.map(p => p.placeBets(round))
         this.bet = Math.abs(bet1 - bet2)

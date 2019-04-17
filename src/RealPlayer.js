@@ -21,7 +21,11 @@ export default class RealPlayer {
         const oldTotal = this.total
         this.pairs[0].computeGain(outcome, won1)
         this.pairs[1].computeGain(outcome, won2)
+        const gain = (won ? 1 : -1) * bet
+        const total1 = this.pairs[0].total
+        const total2 = this.pairs[1].total
         this.total = this.pairs.map(p => p.total).reduce(sum)
+        console.debug(bet1, bet2, bet, oldTotal, total1, total2, this.total)
         const oldMax = this.max
         this.max = Math.max(this.max, this.total)
         const resetLevels = shouldResetLevels(oldTotal, this.total, oldMax, this.max)
@@ -35,9 +39,9 @@ export default class RealPlayer {
             slot,
             outcome,
             match: won ? 'W' : 'L',
-            gain: (won ? 1 : -1) * bet,
-            total1: this.pairs[0].total,
-            total2: this.pairs[1].total,
+            gain,
+            total1,
+            total2,
             total: this.total,
             max: this.max,
             resetLevels,

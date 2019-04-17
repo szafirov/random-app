@@ -12,7 +12,8 @@ export default class VirtualPlayer {
 
     placeBets(round) {
         this.pairs.forEach(pair => pair.placeBets(round))
-        return this.betAmount()
+        this.bet = this.betAmount()
+        return this.bet
     }
 
     computeRows(outcome) {
