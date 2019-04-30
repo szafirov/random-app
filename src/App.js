@@ -165,8 +165,6 @@ class App extends Component {
         this.round = 0
         this.won = 0
         this.data = []
-        this.oldTotal = 0
-        this.max = 0
         this.setState({chartData: []})
     }
 
@@ -507,7 +505,7 @@ class App extends Component {
                         }
                     })}
                 />
-                <div className="footer">Apr 16, 21h47</div>
+                <div className="footer">Apr 29, 23h27</div>
             </div>
         )
     }
