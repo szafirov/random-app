@@ -2,12 +2,13 @@ import {sum, shouldResetLevels} from './Common.js'
 import Pair from './Pair.js'
 
 export default class VirtualPlayer {
-    constructor(pairs, defense, pairSlotGenerator, prototype) {
-        this.pairs = [...Array(pairs).keys()].map(index =>
-            new Pair(defense, pairSlotGenerator, (prototype || {pairs: []}).pairs[index]))
+    constructor(pairs, defense, slotGenerator, pairSlotGenerator, prototype) {
         this.gain = 0
         this.total = 0
         this.max = 0
+        this.slotGenerator = slotGenerator
+        this.pairs = [...Array(pairs).keys()].map(index =>
+            new Pair(defense, pairSlotGenerator, (prototype || {pairs: []}).pairs[index]))
     }
 
     placeBets(round) {
@@ -54,7 +55,8 @@ export default class VirtualPlayer {
         // console.debug(`betSum: ${betSum(0)} - ${betSum(1)}`)
         return Math.abs(betSum(0) - betSum(1))
     }
-    placeBetsAndComputeRow = (round, outcome, slot) => {
+    placeBetsAndComputeRow = (round, outcome) => {
+        const slot = this.slotGenerator(round)
         const bet = this.placeBets(round)
         const won = slot === outcome
         const oldTotal = this.total
