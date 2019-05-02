@@ -84,15 +84,17 @@ class App extends Component {
                 default:
                     return [
                         column('Round', 'round', 60),
-                        column('Bet1', 'bet1', 60),
-                        column('Bet2', 'bet2', 60),
+                        column('B1', 'bet1', 60),
+                        column('B2', 'bet2', 60),
                         column('Bet', 'bet'),
                         column('Slot', 'slot'),
                         column('Out', 'outcome'),
                         matchCol,
+                        column('G1', 'gain1'),
+                        column('G2', 'gain2'),
                         column('Gain', 'gain'),
-                        column('Total1', 'total1', 60),
-                        column('Total2', 'total2', 60),
+                        column('T1', 'total1', 60),
+                        column('T2', 'total2', 60),
                         column('Total', 'total', 60),
                         column('Max', 'max', 60)
                     ]
@@ -367,7 +369,7 @@ class App extends Component {
         }
         const rowBackground = rowInfo => {
             if (rowInfo && rowInfo.row.round === currentRound) return '#ccc'
-            if (rowInfo && rowInfo.row._original.resetLevels) return '#ff2e00'
+            if (rowInfo && rowInfo.row._original.resetLevels) return '#ff9900'
             return ''
         }
         const columnBackground = colInfo =>
@@ -505,7 +507,7 @@ class App extends Component {
                         }
                     })}
                 />
-                <div className="footer">Apr 29, 23h27</div>
+                <div className="footer">May 01, 23h21</div>
             </div>
         )
     }

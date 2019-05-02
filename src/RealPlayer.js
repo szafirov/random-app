@@ -1,4 +1,4 @@
-import {sum, shouldResetLevels} from './Common.js'
+import {formatMatches, sum, shouldResetLevels} from './Common.js'
 import VirtualPair from './VirtualPair.js'
 import { dualSlotGenerator } from './slots.js'
 
@@ -18,7 +18,6 @@ export default class RealPlayer {
 
     placeBetsAndComputeRow(round, outcome) {
         const slot = this.slotGenerator(round)
-        const won = slot === outcome
         const rows = this.pairs.map(p => p.placeBetsAndComputeRow(round, outcome))
         const [bet1, bet2] = rows.map(r => r.bet)
         this.bet = Math.abs(bet1 - bet2)
@@ -38,7 +37,7 @@ export default class RealPlayer {
             bet: this.bet,
             slot,
             outcome,
-            match: won ? 'W' : 'L',
+            match: formatMatches(this.pairs),
             gain1: this.pairs[0].gain,
             gain2: this.pairs[1].gain,
             gain: this.gain,

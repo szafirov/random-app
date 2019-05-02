@@ -1,5 +1,6 @@
 import Random from 'random-js'
 import Player from './Player.js'
+import {formatGains, formatMatch, formatProperty} from './Common.js'
 
 export default class Pair {
 
@@ -42,15 +43,13 @@ export default class Pair {
         this.players.forEach(p => p.computeGain(outcome))
         const formatIndex = player => player.index + (player.star ? '*' : '')
         this.gain = this.players[0].gain + this.players[1].gain
-        const formatGain = gain => (gain >= 0 ? '+' : '-') + Math.abs(gain)
-        const formatProperty = (prop) => this.players.map(p => p[prop]).join(':')
         return {
             index: this.players.map(formatIndex).join(':'),
             level: this.level,
-            slot: formatProperty('slot'),
-            bet: formatProperty('bet'),
-            match: this.players[0].won ? 'W:L' : 'L:W',
-            pairGain: this.players.map(p => formatGain(p.gain)).join(''),
+            slot: formatProperty(this.players,'slot'),
+            bet: formatProperty(this.players,'bet'),
+            match: formatMatch(this.gain),
+            pairGain: formatGains(this.players),
             outcome,
         }
     }

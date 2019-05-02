@@ -1,4 +1,4 @@
-import {sum, shouldResetLevels} from './Common.js'
+import {formatMatch, sum, shouldResetLevels} from './Common.js'
 import Pair from './Pair.js'
 
 export default class VirtualPlayer {
@@ -68,7 +68,7 @@ export default class VirtualPlayer {
             bet,
             slot,
             outcome,
-            match: won ? 'W' : 'L',
+            match: formatMatch(this.gain),
             gain: this.gain,
             total: this.total,
             max: this.max,
