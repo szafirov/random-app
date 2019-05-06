@@ -45,7 +45,7 @@ class App extends Component {
             pageCount: 0,
         }
         const matchCol = {
-            ...column('Match', 'match', 60),
+            ...column('M', 'match', 50),
             Cell: row => (
                 <span style={{
                     color: {'L': '#ff2e00', 'W': '#57d500', '0': '#aaa'}[row.value],
@@ -73,7 +73,7 @@ class App extends Component {
                 case 'virtualPlayer':
                     return [
                         column('Round', 'round', 60),
-                        column('Bet', 'bet'),
+                        column('Bet', 'bet', 60),
                         column('Slot', 'slot'),
                         column('Out', 'outcome'),
                         matchCol,
@@ -83,20 +83,22 @@ class App extends Component {
                     ]
                 default:
                     return [
-                        column('Round', 'round', 60),
-                        column('B1', 'bet1', 60),
-                        column('B2', 'bet2', 60),
-                        column('Bet', 'bet'),
-                        column('Slot', 'slot'),
-                        column('Out', 'outcome'),
+                        column('R', 'round', 45),
+                        column('B1', 'bet1', 50),
+                        column('B2', 'bet2', 50),
+                        column('B', 'bet', 50),
+                        column('S1', 'slot1', 40),
+                        column('S2', 'slot2', 40),
+                        column('S', 'slot', 40),
+                        column('O', 'outcome', 40),
                         matchCol,
-                        column('G1', 'gain1'),
-                        column('G2', 'gain2'),
-                        column('Gain', 'gain'),
-                        column('T1', 'total1', 60),
-                        column('T2', 'total2', 60),
-                        column('Total', 'total', 60),
-                        column('Max', 'max', 60)
+                        column('G1', 'gain1', 50),
+                        column('G2', 'gain2', 50),
+                        column('G', 'gain', 50),
+                        column('T1', 'total1', 55),
+                        column('T2', 'total2', 55),
+                        column('Tot.', 'total', 55),
+                        column('Max', 'max', 55)
                     ]
             }
         }
@@ -507,7 +509,7 @@ class App extends Component {
                         }
                     })}
                 />
-                <div className="footer">May 01, 23h21</div>
+                <div className="footer">May 06, 19h11</div>
             </div>
         )
     }

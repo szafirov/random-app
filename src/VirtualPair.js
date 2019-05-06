@@ -1,4 +1,4 @@
-import {formatMatches, sum, shouldResetLevels} from './Common.js'
+import {shouldResetLevels} from './Common.js'
 import VirtualPlayer from './VirtualPlayer.js'
 import { dualSlotGenerator } from './slots.js'
 
@@ -18,12 +18,14 @@ export default class VirtualPair {
 
     placeBetsAndComputeRow(round, outcome) {
         const slot = this.slotGenerator(round)
+        const won = slot === outcome
         const rows = this.players.map(p => p.placeBetsAndComputeRow(round, outcome))
+        const [slot1, slot2] = rows.map(r => r.slot)
         const [bet1, bet2] = rows.map(r => r.bet)
         this.bet = Math.abs(bet1 - bet2)
         const oldTotal = this.total
-        this.gain = this.players.map(p => p.gain).reduce(sum)
-        this.total = this.players.map(p => p.total).reduce(sum)
+        this.gain = this.bet * (won ? 1 : -1)
+        this.total = oldTotal + this.gain
         const oldMax = this.max
         this.max = Math.max(this.max, this.total)
         const resetLevels = shouldResetLevels(oldTotal, this.total, oldMax, this.max)
@@ -35,9 +37,11 @@ export default class VirtualPair {
             bet1,
             bet2,
             bet: this.bet,
+            slot1,
+            slot2,
             slot,
             outcome,
-            match: formatMatches(this.players),
+            match: won ? 'W' : 'L',
             gain1: this.players[0].gain,
             gain2: this.players[1].gain,
             gain: this.gain,
@@ -49,21 +53,6 @@ export default class VirtualPair {
             resetLevels,
         }
     }
-
-    // placeBets(round) {
-    //     const [ bet1, bet2 ] = this.players.map(p => p.placeBets(round))
-    //     this.bet = Math.abs(bet1 - bet2)
-    //     return this.bet
-    // }
-    //
-    // computeGain(outcome, won) {
-    //     const [ bet1, bet2 ] = this.players.map(p => p.bet)
-    //     const won1 = won === (bet1 >= bet2)
-    //     const won2 = won === (bet1 < bet2)
-    //     this.players[0].computeGain(outcome, won1)
-    //     this.players[1].computeGain(outcome, won2)
-    //     this.total = this.players.map(p => p.total).reduce(sum)
-    // }
 
     evolve(resetLevels) {
         this.players.forEach(p => p.evolve(resetLevels))
