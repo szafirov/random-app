@@ -27,3 +27,7 @@ export function dualSlotGenerator(generator) {
         () => 1 - slot
     ]
 }
+
+export function slotAlternator(bet1, bet2, slot) {
+    return bet1 < bet2 ? 1 - slot : slot
+}

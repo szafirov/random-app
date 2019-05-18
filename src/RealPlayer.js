@@ -1,6 +1,6 @@
 import {shouldResetLevels} from './Common.js'
 import VirtualPair from './VirtualPair.js'
-import { dualSlotGenerator } from './slots.js'
+import { dualSlotGenerator, slotAlternator } from './slots.js'
 
 export default class RealPlayer {
 
@@ -17,13 +17,13 @@ export default class RealPlayer {
     }
 
     placeBetsAndComputeRow(round, outcome) {
-        const slot = this.slotGenerator(round)
-        const won = slot === outcome
         const rows = this.pairs.map(p => p.placeBetsAndComputeRow(round, outcome))
         const [slot1, slot2] = rows.map(r => r.slot)
         const [bet1, bet2] = rows.map(r => r.bet)
         this.bet = Math.abs(bet1 - bet2)
         const oldTotal = this.total
+        const slot = slotAlternator(bet1, bet2, this.slotGenerator(round))
+        const won = slot === outcome
         this.gain = this.bet * (won ? 1 : -1)
         this.total = oldTotal + this.gain
         const oldMax = this.max

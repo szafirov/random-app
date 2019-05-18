@@ -509,7 +509,7 @@ class App extends Component {
                         }
                     })}
                 />
-                <div className="footer">May 06, 19h11</div>
+                <div className="footer">May 18, 18h02</div>
             </div>
         )
     }
