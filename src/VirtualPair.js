@@ -1,7 +1,6 @@
 import {shouldResetLevels} from './Common.js'
 import VirtualPlayer from './VirtualPlayer.js'
 import { dualSlotGenerator } from './slots.js'
-import {slotAlternator} from "./slots";
 
 
 export default class VirtualPair {
@@ -21,12 +20,9 @@ export default class VirtualPair {
         const rows = this.players.map(p => p.placeBetsAndComputeRow(round, outcome))
         const [slot1, slot2] = rows.map(r => r.slot)
         const [bet1, bet2] = rows.map(r => r.bet)
-        this.bet = Math.abs(bet1 - bet2)
         const oldTotal = this.total
-        const slot = slotAlternator(bet1, bet2, this.slotGenerator(round))
-        const won = slot === outcome
-        this.gain = this.bet * (won ? 1 : -1)
-        this.total = oldTotal + this.gain
+        this.total = this.players[0].total + this.players[1].total
+        this.gain = this.total - oldTotal
         const oldMax = this.max
         this.max = Math.max(this.max, this.total)
         const resetLevels = shouldResetLevels(oldTotal, this.total, oldMax, this.max)
@@ -35,20 +31,13 @@ export default class VirtualPair {
             round,
             rows,
             pair: 0,
-            bet1,
-            bet2,
-            bet: this.bet,
-            slot1,
-            slot2,
-            slot,
+            bet: `${bet1}:${bet2}`,
+            slot: `${slot1}:${slot2}`,
             outcome,
-            match: won ? 'W' : 'L',
-            gain1: this.players[0].gain,
-            gain2: this.players[1].gain,
-            gain: this.gain,
+            match: slot1 === outcome ? 'W:L' : 'L:W',
+            gain: this.players.map(p => p.gain).join(':'),
             total1: this.players[0].total,
             total2: this.players[1].total,
-            oldTotal,
             total: this.total,
             max: this.max,
             resetLevels,

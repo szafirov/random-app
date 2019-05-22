@@ -32,6 +32,10 @@ label {
     grid-area: left;
 }
 
+.rt-td {
+    text-align: right;
+}
+
 .grid {
     grid-area: right-bottom;
 }

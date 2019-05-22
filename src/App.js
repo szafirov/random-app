@@ -15,7 +15,7 @@ const outcomeEngine = new Random(Random.engines.mt19937().autoSeed())
 const randomOutcome = () => outcomeEngine.bool() ? 1 : 0
 
 
-const column = (Header, accessor, width = 50) => ({Header, accessor, width, sortable: false})
+const column = (Header, accessor, width = 60) => ({Header, accessor, width, sortable: false})
 
 class App extends Component {
     constructor(props) {
@@ -34,7 +34,7 @@ class App extends Component {
             pairs: 10,
             chartData: [],
             pageData: [],
-            mode: 'realPlayer',
+            mode: 'virtualPair',
             realPlayerSlotGen: 'random',
             virtualPairSlotGen: 'random',
             virtualPlayerSlotGen: 'random',
@@ -45,7 +45,7 @@ class App extends Component {
             pageCount: 0,
         }
         const matchCol = {
-            ...column('M', 'match', 50),
+            ...column('Match', 'match'),
             Cell: row => (
                 <span style={{
                     color: {'L': '#ff2e00', 'W': '#57d500', '0': '#aaa'}[row.value],
@@ -57,29 +57,42 @@ class App extends Component {
             switch (mode) {
                 case 'pairs':
                     return [
-                        column('Round', 'round', 60),
+                        column('Round', 'round'),
                         column('Level', 'level'),
-                        column('Index', 'index', 60),
+                        column('Index', 'index'),
                         column('Slot', 'slot'),
                         column('Bet', 'bet'),
                         column('Out', 'outcome'),
                         matchCol,
                         column('Pair Gain', 'pairGain', 90),
                         column('Gain', 'gain'),
-                        column('Total', 'total', 60),
-                        column('Max', 'max', 60)
+                        column('Total', 'total'),
+                        column('Max', 'max')
                     ]
                 case 'manualVirtualPlayer':
                 case 'virtualPlayer':
                     return [
-                        column('Round', 'round', 60),
-                        column('Bet', 'bet', 60),
+                        column('Round', 'round'),
+                        column('Bet', 'bet'),
                         column('Slot', 'slot'),
                         column('Out', 'outcome'),
                         matchCol,
                         column('Gain', 'gain'),
-                        column('Total', 'total', 60),
-                        column('Max', 'max', 60)
+                        column('Total', 'total'),
+                        column('Max', 'max')
+                    ]
+                case 'virtualPair':
+                    return [
+                        column('Round', 'round'),
+                        column('Bets', 'bet'),
+                        column('Slots', 'slot'),
+                        column('Out', 'outcome', 50),
+                        matchCol,
+                        column('Gain', 'gain', 100),
+                        column('T1', 'total1'),
+                        column('T2', 'total2'),
+                        column('Total', 'total'),
+                        column('Max', 'max')
                     ]
                 default:
                     return [
@@ -397,7 +410,7 @@ class App extends Component {
                     <label>
                         Mode:
                         <select value={mode} onChange={e => this.changeMode(e.target.value)} style={{width: 110}}>
-                            <option value="realPlayer">Real Player (=2V Pairs)</option>
+                            {/*<option value="realPlayer">Real Player (=2V Pairs)</option>*/}
                             <option value="virtualPair">Virtual Pair (=2V Players)</option>
                             <option value="virtualPlayer">Virtual Player</option>
                             <option value="manualVirtualPlayer">Manual Virtual Player</option>
@@ -509,7 +522,7 @@ class App extends Component {
                         }
                     })}
                 />
-                <div className="footer">May 18, 18h02</div>
+                <div className="footer">May 22, 17h03</div>
             </div>
         )
     }
